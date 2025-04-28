@@ -17,19 +17,19 @@ export default function AdminPage() {
                 <Col lg={2} md={3}>
                     <div className="admin-sidebar">
                         <Nav variant="pills" className="flex-column admin-nav">
-                            <Nav.Link as={NavLink} to="" end>
+                            <Nav.Link as={NavLink} to="/admin" end>
                                 <FaTachometerAlt /> Dashboard
                             </Nav.Link>
-                            <Nav.Link as={NavLink} to="products">
+                            <Nav.Link as={NavLink} to="/admin/products">
                                 <FaBox /> Products
                             </Nav.Link>
-                            <Nav.Link as={NavLink} to="users">
+                            <Nav.Link as={NavLink} to="/admin/users">
                                 <FaUsers /> Users
                             </Nav.Link>
-                            <Nav.Link as={NavLink} to="reports">
+                            <Nav.Link as={NavLink} to="/admin/reports">
                                 <FaFileAlt /> Reports
                             </Nav.Link>
-                            <Nav.Link as={NavLink} to="analytics">
+                            <Nav.Link as={NavLink} to="/admin/analytics">
                                 <FaChartBar /> Analytics
                             </Nav.Link>
                         </Nav>
