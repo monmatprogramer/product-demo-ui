@@ -1,21 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Container, Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import { clearCart } from '../utils/cartUtils';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
 const CheckoutPage = () => {
+    const { user } = useContext(AuthContext);
     const [submitted, setSubmitted] = useState(false);
     const [validated, setValidated] = useState(false);
     const navigate = useNavigate();
+
+    // Initial form state
+    const [formData, setFormData] = useState({
+        name: '',
+        address: ''
+    });
+
+    // Pre-fill form with user data when component mounts
+    useEffect(() => {
+        if (user) {
+            // Try to get additional profile info from localStorage
+            const storedProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+            
+            setFormData({
+                name: user.username || '',
+                address: storedProfile.address || ''
+            });
+        }
+    }, [user]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
 
     const handleSubmit = (e) => {
         const form = e.currentTarget;
         e.preventDefault();
         e.stopPropagation();
+        
         if (!form.checkValidity()) {
             setValidated(true);
             return;
         }
+        
         // pretend we call an API…
         clearCart();
         setSubmitted(true);
@@ -43,14 +74,26 @@ const CheckoutPage = () => {
                     <legend className="float-none w-auto px-2">Shipping Information</legend>
                     <Form.Group className="mb-3" controlId="shipName">
                         <Form.Label>Full Name</Form.Label>
-                        <Form.Control name="name" required placeholder="Jane Doe" />
+                        <Form.Control 
+                            name="name" 
+                            required 
+                            placeholder="Enter full name" 
+                            value={formData.name}
+                            onChange={handleChange}
+                        />
                         <Form.Control.Feedback type="invalid">
                             Please enter your name.
                         </Form.Control.Feedback>
                     </Form.Group>
                     <Form.Group className="mb-3" controlId="shipAddress">
                         <Form.Label>Address</Form.Label>
-                        <Form.Control name="address" required placeholder="1234 Main St" />
+                        <Form.Control 
+                            name="address" 
+                            required 
+                            placeholder="Enter your address" 
+                            value={formData.address}
+                            onChange={handleChange}
+                        />
                         <Form.Control.Feedback type="invalid">
                             Please enter your address.
                         </Form.Control.Feedback>
