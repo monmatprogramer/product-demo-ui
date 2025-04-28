@@ -2,7 +2,7 @@
   "name": "product-demo-ui",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://localhost:8080",
+  
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -26,6 +26,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "proxy": "http://localhost:8080",
   "eslintConfig": {
     "extends": [
       "react-app",
