@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Spinner, Alert } from 'react-bootstrap';
-import { FaUserPlus, FaEdit, FaTrash, FaUserShield, FaUser } from 'react-icons/fa';
+import { FaUserPlus, FaEdit, FaTrash, FaUserShield } from 'react-icons/fa';
 import UserFormModal from './UserFormModal';
 import { safeJsonFetch } from '../../utils/apiUtils';
 
@@ -68,7 +68,7 @@ export default function UserManagement() {
             ) : users.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-state-icon">
-                        <FaUsers />
+                        
                     </div>
                     <h4>No Users Found</h4>
                     <p className="empty-state-text">
@@ -100,7 +100,7 @@ export default function UserManagement() {
                                         <div className="d-flex align-items-center">
                                             {user.isAdmin ? 
                                                 <FaUserShield className="me-2 text-primary" /> : 
-                                                <FaUser className="me-2 text-secondary" />
+                                                <FaUserShield className="me-2 text-secondary" />
                                             }
                                             {user.username}
                                         </div>

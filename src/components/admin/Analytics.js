@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Spinner, Alert, Form } from 'react-bootstrap';
+import { Row, Col, Spinner, Alert, Form } from 'react-bootstrap';
 import { 
     FaChartLine, 
     FaChartBar, 

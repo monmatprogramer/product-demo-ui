@@ -112,13 +112,13 @@ const ProfilePage = () => {
     // In a real app, you would send this data to your backend
     // For now, we'll just update the local context
 
-    const updatedUser = {
-      ...user,
-      username: profile.username,
-      email: profile.email,
-      phone: profile.phone,
-      address: profile.address,
-    };
+    // const updatedUser = {
+    //   ...user,
+    //   username: profile.username,
+    //   email: profile.email,
+    //   phone: profile.phone,
+    //   address: profile.address,
+    // };
 
     // Update the AuthContext
     login(profile.username);
