@@ -76,3 +76,38 @@
     border-radius: 50%;           /* perfect circle */
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+
+/* Profile icon and dropdown styles */
+.profile-icon-container {
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    color: #333;
+    transition: color 0.2s;
+}
+
+#profile-dropdown::after {
+    margin-left: 0.5rem;
+}
+
+#profile-dropdown:hover .profile-icon {
+    color: #007bff;
+}
+
+.dropdown-item.active, .dropdown-item:active {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.dropdown-menu {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border: none;
+    padding: 0.5rem 0;
+}
+
+.dropdown-divider {
+    margin: 0.25rem 0;
+}

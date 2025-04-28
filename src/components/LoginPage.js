@@ -6,7 +6,8 @@ import {
     Button,
     InputGroup,
     Modal,
-    Alert
+    Alert,
+    Spinner
 } from 'react-bootstrap';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { AuthContext } from '../context/AuthContext';
@@ -22,28 +23,76 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [showPass, setShowPass] = useState(false);
     const [validated, setValidated] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
     // Forgot-password modal
     const [showModal, setShowModal] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
     const [resetSent, setResetSent] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        setError('');
+        
         const form = e.currentTarget;
         if (!form.checkValidity()) {
             setValidated(true);
             return;
         }
-        // stub: call real auth API here
-        login(username.trim());
-        navigate(from, { replace: true });
+
+        setIsLoading(true);
+        
+        try {
+            // Using the proxy configuration - just use the relative path
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username.trim(),
+                    password: password
+                })
+            });
+
+            // Handle response
+            let data;
+            try {
+                data = await response.json();
+            } catch (error) {
+                console.error('Failed to parse response as JSON', error);
+                throw new Error('Server returned an invalid response');
+            }
+            
+            if (!response.ok) {
+                throw new Error(data?.message || 'Login failed');
+            }
+            
+            console.log('Login successful:', data);
+            
+            // Store the token if it exists in the response
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+            }
+            
+            // Login the user with AuthContext
+            login(username.trim());
+            
+            // Navigate to the original destination or home
+            navigate(from, { replace: true });
+        } catch (err) {
+            console.error('Login error:', err);
+            setError(err.message || 'Invalid username or password');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleReset = (e) => {
         e.preventDefault();
-        // stub: call real reset API here
+        // API call would go here in a real implementation
         setResetSent(true);
     };
 
@@ -52,6 +101,13 @@ const LoginPage = () => {
             <Card className="auth-card shadow-sm">
                 <Card.Body>
                     <h3 className="mb-4 text-center">Welcome Back</h3>
+                    
+                    {error && (
+                        <Alert variant="danger" className="mb-3">
+                            <strong>Login Error:</strong> {error}
+                        </Alert>
+                    )}
+                    
                     <Form noValidate validated={validated} onSubmit={handleSubmit}>
                         <Form.Group controlId="loginUsername" className="mb-3">
                             <Form.Label>Username</Form.Label>
@@ -90,8 +146,17 @@ const LoginPage = () => {
                         </Form.Group>
 
                         <div className="d-flex justify-content-between align-items-center mb-3">
-                            <Button type="submit" variant="primary">
-                                Log In
+                            <Button 
+                                type="submit" 
+                                variant="primary"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Spinner as="span" animation="border" size="sm" className="me-2" />
+                                        Logging in...
+                                    </>
+                                ) : 'Log In'}
                             </Button>
                             <Button
                                 variant="link"
@@ -103,7 +168,7 @@ const LoginPage = () => {
 
                         <div className="text-center">
                             <small>
-                                Don’t have an account? <Link to="/register">Register</Link>
+                                Don't have an account? <Link to="/register">Register</Link>
                             </small>
                         </div>
                     </Form>

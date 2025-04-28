@@ -1,0 +1,140 @@
+.orders-container {
+    max-width: 950px;
+    margin: 0 auto;
+}
+
+.order-card {
+    border: none;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.3s;
+}
+
+.order-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+.order-card .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1rem;
+}
+
+.order-number {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.order-date {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.status-badge {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+}
+
+.status-badge-lg {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+}
+
+.status-icon {
+    margin-right: 0.5rem;
+}
+
+.status-icon.processing {
+    color: #ffc107;
+}
+
+.status-icon.shipped {
+    color: #0dcaf0;
+}
+
+.status-icon.delivered {
+    color: #28a745;
+}
+
+.order-items {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.order-item {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.order-item:last-child {
+    border-bottom: none;
+}
+
+.item-name {
+    font-weight: 500;
+}
+
+.item-qty {
+    font-size: 0.9rem;
+}
+
+.item-price {
+    font-weight: 500;
+}
+
+.order-total {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.total-amount {
+    color: #007bff;
+}
+
+.order-card .card-footer {
+    background-color: #fff;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1rem;
+}
+
+.order-status-banner {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.table th {
+    border-top: none;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+.table td, .table th {
+    padding: 0.75rem;
+    vertical-align: middle;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .order-card .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .status-badge {
+        margin-top: 0.5rem;
+    }
+    
+    .order-date {
+        display: block;
+        margin-left: 0;
+        margin-top: 0.25rem;
+    }
+}

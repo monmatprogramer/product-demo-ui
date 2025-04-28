@@ -5,58 +5,23 @@ import {
     InputGroup,
     Form,
     Nav,
-    Badge
+    Badge,
+    NavDropdown,
+    Image
 } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
-import { FaSearch, FaShoppingCart } from 'react-icons/fa';
+import { Link, useNavigate } from 'react-router-dom';
+import { FaSearch, FaShoppingCart, FaUserCircle } from 'react-icons/fa';
 import { AuthContext } from '../context/AuthContext';
 import './NavbarBar.css';
 
-/* ─── ORIGINAL (keep for reference) ────────────────────────────
-
-const NavbarBar = ({ searchValue, onSearch, cartCount }) => (
-  <Navbar expand="lg" className="appbar sticky-top">
-    <Container fluid>
-      <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
-        <span className="logo-icon">🖥️</span>
-        <span className="logo-text">Computer Store</span>
-      </Navbar.Brand>
-
-      <Navbar.Toggle aria-controls="appbar-nav" />
-      <Navbar.Collapse id="appbar-nav" className="justify-content-end">
-
-        <InputGroup className="search-group me-3">
-          <InputGroup.Text className="search-icon">
-            <FaSearch />
-          </InputGroup.Text>
-          <Form.Control
-            placeholder="Search products…"
-            value={searchValue}
-            onChange={e => onSearch(e.target.value)}
-          />
-        </InputGroup>
-
-        <Link to="/cart" className="cart-link">
-          <FaShoppingCart size={20} />
-          {cartCount > 0 && (
-            <Badge pill bg="danger" className="cart-badge">
-              {cartCount}
-            </Badge>
-          )}
-        </Link>
-      </Navbar.Collapse>
-    </Container>
-  </Navbar>
-);
-
-export default NavbarBar;
-
-─────────────────────────────────────────────────────── */
-
-
-// ─── ENHANCED (active implementation) ─────────────────────────
 const NavbarBar = ({ searchValue, onSearch, cartCount }) => {
     const { user, logout } = useContext(AuthContext);
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
 
     return (
         <Navbar expand="lg" className="appbar sticky-top">
@@ -100,10 +65,24 @@ const NavbarBar = ({ searchValue, onSearch, cartCount }) => {
                         </Nav>
                     )}
 
-                    {/* Login/logout */}
+                    {/* User Profile or Login */}
                     <Nav>
                         {user ? (
-                            <Nav.Link onClick={logout}>Log out</Nav.Link>
+                            <NavDropdown 
+                                title={
+                                    <div className="profile-icon-container">
+                                        <FaUserCircle size={24} className="profile-icon" />
+                                        <span className="ms-2 d-none d-md-inline">{user.username}</span>
+                                    </div>
+                                } 
+                                id="profile-dropdown"
+                                align="end"
+                            >
+                                <NavDropdown.Item as={Link} to="/profile">My Profile</NavDropdown.Item>
+                                <NavDropdown.Item as={Link} to="/orders">My Orders</NavDropdown.Item>
+                                <NavDropdown.Divider />
+                                <NavDropdown.Item onClick={handleLogout}>Log out</NavDropdown.Item>
+                            </NavDropdown>
                         ) : (
                             <Nav.Link as={Link} to="/login">Log in</Nav.Link>
                         )}

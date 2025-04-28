@@ -1,0 +1,90 @@
+.profile-container {
+    max-width: 950px;
+    margin: 0 auto;
+}
+
+.profile-card, .order-history-card {
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.3s;
+}
+
+.profile-card:hover, .order-history-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+.profile-tabs .nav-link {
+    border-radius: 0.5rem 0.5rem 0 0;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    color: #495057;
+}
+
+.profile-tabs .nav-link.active {
+    color: #007bff;
+    border-bottom-color: #ffffff;
+    border-top: 3px solid #007bff;
+}
+
+.edit-button {
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.form-control {
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+.form-control:disabled {
+    background-color: #f8f9fa;
+    opacity: 0.8;
+}
+
+.table th {
+    border-top: none;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+.table td, .table th {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+}
+
+.table tbody tr {
+    transition: background-color 0.1s;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.03);
+}
+
+/* Custom validation styles */
+.form-control.is-invalid {
+    background-image: none;
+    padding-right: 0.875rem;
+}
+
+.form-label {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .profile-tabs .nav-link {
+        padding: 0.5rem 1rem;
+    }
+    
+    .table {
+        font-size: 0.875rem;
+    }
+}

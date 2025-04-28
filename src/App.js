@@ -13,6 +13,8 @@ import CartPage      from './components/CartPage';
 import CheckoutPage  from './components/CheckoutPage';
 import LoginPage     from './components/LoginPage';
 import RegisterPage  from './components/RegisterPage';
+import ProfilePage   from './components/ProfilePage';
+import OrdersPage    from './components/OrdersPage';
 import NotFound      from './components/NotFound';
 import Loader        from './components/Loader';
 
@@ -111,33 +113,51 @@ function App() {
 
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart"         element={<CartPage />} />
-            <Route
-                path="/admin"
-                element={
-                    <AdminRoute>
-                        <AdminPage />
-                    </AdminRoute>
-                }
-            >
+          <Route
+              path="/admin"
+              element={
+                  <AdminRoute>
+                      <AdminPage />
+                  </AdminRoute>
+              }
+          >
 
-            </Route>
+          </Route>
           {/* Public auth routes */}
           <Route path="/login"    element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-            <Route
-                path="/admin/*"
-                element={
-                    <AdminRoute>
-                        <AdminPage />
-                    </AdminRoute>
-                }
-            >
-                <Route index element={<Dashboard />} />
-                <Route path="products" element={<ProductsAdmin />} />
-                <Route path="users" element={<UserManagement />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="analytics" element={<Analytics />} />
-            </Route>
+          <Route
+              path="/admin/*"
+              element={
+                  <AdminRoute>
+                      <AdminPage />
+                  </AdminRoute>
+              }
+          >
+              <Route index element={<Dashboard />} />
+              <Route path="products" element={<ProductsAdmin />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="analytics" element={<Analytics />} />
+          </Route>
+
+          {/* User profile routes */}
+          <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <ProfilePage />
+                </PrivateRoute>
+              }
+          />
+          <Route
+              path="/orders"
+              element={
+                <PrivateRoute>
+                  <OrdersPage />
+                </PrivateRoute>
+              }
+          />
 
           {/* Protected checkout */}
           <Route
