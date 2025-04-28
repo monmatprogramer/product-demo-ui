@@ -36,3 +36,153 @@
     transform: rotate(360deg);
   }
 }
+
+/* src/App.css */
+.product-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+/* src/App.css */
+
+/* Card hover lift */
+.product-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Make sure images cover the card width nicely */
+.card-img-top {
+  object-fit: cover;
+  height: 200px;
+}
+
+/* Tweak the search input styling */
+.navbar .form-control {
+  border-radius: 20px;
+}
+
+/* Hero section tighter margins */
+.display-4 {
+  font-weight: 600;
+}
+/* Ensure container spans nicely */
+.container {
+  max-width: 1200px;
+}
+
+/* Card hover lift */
+.product-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Crop and center images */
+.card-img-container {
+  overflow: hidden;
+  height: 200px;
+}
+.card-img-top {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s;
+}
+.card-img-top:hover {
+  transform: scale(1.05);
+}
+
+/* Tweak the search input rounded look */
+.navbar .form-control {
+  border-radius: 20px;
+}
+
+/* Hero text heavier */
+.display-4 {
+  font-weight: 600;
+}
+/* limit wide screens */
+.container {
+  max-width: 1200px;
+}
+
+/* Sidebar styling */
+.list-group-item {
+  cursor: pointer;
+}
+
+/* Card hover lift */
+.product-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Crop & zoom images */
+.card-img-container {
+  overflow: hidden;
+  height: 200px;
+}
+.card-img-top {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s;
+}
+.card-img-top:hover {
+  transform: scale(1.05);
+}
+
+/* Rounded search input */
+.navbar .form-control {
+  border-radius: 20px;
+}
+
+/* Hero text weight */
+.display-4 {
+  font-weight: 600;
+}
+/* Add at the end of App.css */
+
+.sort-container {
+  flex-wrap: wrap;
+}
+
+.sort-select {
+  width: 180px;
+}
+.sort-container {
+  flex-wrap: wrap;
+}
+.sort-select {
+  width: 180px;
+}
+.card-img-container {
+  overflow: hidden;
+  height: 200px;
+}
+.card-img-top {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s;
+}
+.card-img-top:hover {
+  transform: scale(1.05);
+}
+.navbar .form-control {
+  border-radius: 20px;
+}
+.display-4 {
+  font-weight: 600;
+}

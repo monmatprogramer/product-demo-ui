@@ -1,0 +1,78 @@
+.appbar {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 1rem;
+}
+
+.logo-icon {
+    font-size: 1.5rem;
+    margin-right: 0.5rem;
+}
+
+.logo-text {
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.search-group {
+    max-width: 400px;
+    width: 100%;
+}
+
+.search-icon {
+    background: transparent;
+    border: none;
+}
+
+.search-group .form-control {
+    border-left: none;
+    border-radius: 0 1rem 1rem 0;
+}
+
+.search-group .input-group-text {
+    border-radius: 1rem 0 0 1rem;
+    border-right: none;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.cart-link {
+    position: relative;
+    color: #333;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -10px;
+    font-size: 0.75rem;
+}
+.cart-link {
+    position: relative;
+    color: #333;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.cart-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-size: 0.75rem;
+    background-color: #ff4d4f;    /* vibrant red */
+    color: #fff;
+    border: 2px solid #fff;       /* crisp white outline */
+    border-radius: 50%;           /* perfect circle */
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
