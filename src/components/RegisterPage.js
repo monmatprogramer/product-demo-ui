@@ -8,22 +8,34 @@ import {
     Alert,
     Spinner
 } from 'react-bootstrap';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import './AuthForms.css';
 
 const RegisterPage = () => {
-    const { login } = useContext(AuthContext);
+    const { register } = useContext(AuthContext);
     const navigate = useNavigate();
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirm, setConfirm] = useState('');
+    
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
     const [showPass, setShowPass] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [validated, setValidated] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -31,7 +43,15 @@ const RegisterPage = () => {
         setError('');
         
         const form = e.currentTarget;
-        if (!form.checkValidity() || password !== confirm) {
+        
+        // Check if passwords match
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            setValidated(true);
+            return;
+        }
+        
+        if (!form.checkValidity()) {
             setValidated(true);
             return;
         }
@@ -39,39 +59,19 @@ const RegisterPage = () => {
         setIsLoading(true);
         
         try {
-            // Using the proxy configuration - just use the relative path
-            // This will automatically be forwarded to localhost:8080
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    username: username.trim(),
-                    password: password
-                })
+            // Use register function from context
+            const success = await register({
+                username: formData.username.trim(),
+                email: formData.email.trim(),
+                password: formData.password
             });
-
-            // Handle non-JSON responses
-            let data;
-            try {
-                data = await response.json();
-            } catch (error) {
-                console.error('Failed to parse response as JSON', error);
-                throw new Error('Server returned an invalid response');
+            
+            if (success) {
+                // Navigate to home page after successful registration
+                navigate('/', { replace: true });
+            } else {
+                throw new Error('Registration failed. Please try again.');
             }
-            
-            if (!response.ok) {
-                throw new Error(data?.message || 'Registration failed');
-            }
-            
-            console.log('Registration successful:', data);
-            
-            // Login the user
-            login(username.trim());
-            
-            // Navigate to home page
-            navigate('/', { replace: true });
         } catch (err) {
             console.error('Registration error:', err);
             setError(err.message || 'Failed to register. Please try again.');
@@ -98,13 +98,33 @@ const RegisterPage = () => {
                             <Form.Control
                                 required
                                 type="text"
+                                name="username"
                                 placeholder="Choose a username"
-                                value={username}
-                                onChange={e => setUsername(e.target.value)}
+                                value={formData.username}
+                                onChange={handleChange}
+                                disabled={isLoading}
                             />
                             <Form.Control.Feedback type="invalid">
                                 Please pick a username.
                             </Form.Control.Feedback>
+                        </Form.Group>
+                        
+                        <Form.Group controlId="regEmail" className="mb-3">
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control
+                                type="email"
+                                name="email"
+                                placeholder="Enter your email (optional)"
+                                value={formData.email}
+                                onChange={handleChange}
+                                disabled={isLoading}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                Please enter a valid email address.
+                            </Form.Control.Feedback>
+                            <Form.Text className="text-muted">
+                                Your email is used for account recovery.
+                            </Form.Text>
                         </Form.Group>
 
                         <Form.Group controlId="regPassword" className="mb-3">
@@ -113,14 +133,17 @@ const RegisterPage = () => {
                                 <Form.Control
                                     required
                                     type={showPass ? 'text' : 'password'}
+                                    name="password"
                                     placeholder="Enter password"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
+                                    value={formData.password}
+                                    onChange={handleChange}
                                     minLength={6}
+                                    disabled={isLoading}
                                 />
                                 <Button
                                     variant="outline-secondary"
                                     onClick={() => setShowPass(!showPass)}
+                                    disabled={isLoading}
                                 >
                                     {showPass ? <FaEyeSlash /> : <FaEye />}
                                 </Button>
@@ -136,14 +159,17 @@ const RegisterPage = () => {
                                 <Form.Control
                                     required
                                     type={showConfirm ? 'text' : 'password'}
+                                    name="confirmPassword"
                                     placeholder="Re-enter password"
-                                    value={confirm}
-                                    onChange={e => setConfirm(e.target.value)}
-                                    isInvalid={validated && password !== confirm}
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
+                                    isInvalid={validated && formData.password !== formData.confirmPassword}
+                                    disabled={isLoading}
                                 />
                                 <Button
                                     variant="outline-secondary"
                                     onClick={() => setShowConfirm(!showConfirm)}
+                                    disabled={isLoading}
                                 >
                                     {showConfirm ? <FaEyeSlash /> : <FaEye />}
                                 </Button>
@@ -158,13 +184,19 @@ const RegisterPage = () => {
                                 type="submit" 
                                 variant="primary"
                                 disabled={isLoading}
+                                className="d-flex justify-content-center align-items-center"
                             >
                                 {isLoading ? (
                                     <>
                                         <Spinner as="span" animation="border" size="sm" className="me-2" />
                                         Registering...
                                     </>
-                                ) : 'Register & Log In'}
+                                ) : (
+                                    <>
+                                        <FaUserPlus className="me-2" />
+                                        Register & Log In
+                                    </>
+                                )}
                             </Button>
                         </div>
                         

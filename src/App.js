@@ -17,6 +17,7 @@ import ProfilePage from "./components/ProfilePage";
 import OrdersPage from "./components/OrdersPage";
 import NotFound from "./components/NotFound";
 import Loader from "./components/Loader";
+import Footer from "./components/Footer";
 
 import { getCart } from "./utils/cartUtils";
 import { AuthProvider } from "./context/AuthContext";
@@ -83,115 +84,121 @@ function App() {
 
   return (
     <AuthProvider>
-      <NavbarBar
-        searchValue={query}
-        onSearch={setQuery}
-        cartCount={cartCount}
-      />
-
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <>
-              <Hero />
-              <Container fluid>
-                <Row>
-                  <Col md={2} className="mb-4">
-                    <Sidebar
-                      categories={categories}
-                      selected={category}
-                      onSelect={(c) => {
-                        setCategory(c);
-                        setSortOrder("");
-                      }}
-                    />
-                  </Col>
-                  <Col md={10}>
-                    <SortControl
-                      sortOrder={sortOrder}
-                      onSortChange={setSortOrder}
-                    />
-                    <ProductGrid
-                      products={filtered}
-                      onViewDetails={(p) => {
-                        localStorage.setItem("lastViewed", p.id);
-                        navigate(`/product/${p.id}`);
-                      }}
-                    />
-                  </Col>
-                </Row>
-              </Container>
-            </>
-          }
+      <div className="app-container d-flex flex-column min-vh-100">
+        <NavbarBar
+          searchValue={query}
+          onSearch={setQuery}
+          cartCount={cartCount}
         />
 
-        <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <AdminPage />
-            </AdminRoute>
-          }
-        ></Route>
-        {/* Public auth routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route
-          path="/admin/*"
-          element={
-            <AdminRoute>
-              <AdminPage />
-            </AdminRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="products" element={<ProductsAdmin />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="analytics" element={<Analytics />} />
-        </Route>
+        <main className="flex-grow-1">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <>
+                  <Hero />
+                  <Container fluid>
+                    <Row>
+                      <Col md={2} className="mb-4">
+                        <Sidebar
+                          categories={categories}
+                          selected={category}
+                          onSelect={(c) => {
+                            setCategory(c);
+                            setSortOrder("");
+                          }}
+                        />
+                      </Col>
+                      <Col md={10}>
+                        <SortControl
+                          sortOrder={sortOrder}
+                          onSortChange={setSortOrder}
+                        />
+                        <ProductGrid
+                          products={filtered}
+                          onViewDetails={(p) => {
+                            localStorage.setItem("lastViewed", p.id);
+                            navigate(`/product/${p.id}`);
+                          }}
+                        />
+                      </Col>
+                    </Row>
+                  </Container>
+                </>
+              }
+            />
 
-        {/* User profile routes */}
-        <Route
-          path="/profile"
-          element={
-            <PrivateRoute>
-              <ProfilePage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/orders"
-          element={
-            <PrivateRoute>
-              <OrdersPage />
-            </PrivateRoute>
-          }
-        />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminPage />
+                </AdminRoute>
+              }
+            ></Route>
+            {/* Public auth routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route
+              path="/admin/*"
+              element={
+                <AdminRoute>
+                  <AdminPage />
+                </AdminRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="products" element={<ProductsAdmin />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="analytics" element={<Analytics />} />
+            </Route>
 
-        {/* Protected checkout */}
-        <Route
-          path="/checkout"
-          element={
-            <PrivateRoute>
-              <CheckoutPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin/manage-users"
-          element={
-            <AdminRoute>
-              <MyComponent />
-            </AdminRoute>
-          }
-        />
+            {/* User profile routes */}
+            <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <ProfilePage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <PrivateRoute>
+                  <OrdersPage />
+                </PrivateRoute>
+              }
+            />
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+            {/* Protected checkout */}
+            <Route
+              path="/checkout"
+              element={
+                <PrivateRoute>
+                  <CheckoutPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/admin/manage-users"
+              element={
+                <AdminRoute>
+                  <MyComponent />
+                </AdminRoute>
+              }
+            />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+        
+        <Footer />
+      </div>
     </AuthProvider>
   );
 }

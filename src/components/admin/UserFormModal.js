@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Modal, Button, Form, InputGroup, Spinner, Alert } from 'react-bootstrap';
 import { FaSave, FaUser, FaUserShield, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function UserFormModal({ user, onClose, onSaved }) {
+    const { getAuthHeaders } = useContext(AuthContext);
     const isNew = !user.id;
+    
     const [form, setForm] = useState({ 
         username: '', 
-        isAdmin: false,
+        email: '',
+        admin: false,
         password: '',
         confirmPassword: ''
     });
+    
     const [validated, setValidated] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -19,14 +24,16 @@ export default function UserFormModal({ user, onClose, onSaved }) {
         if (!isNew) {
             setForm({ 
                 username: user.username || '',
-                isAdmin: user.isAdmin || false,
+                email: user.email || '',
+                admin: user.role === 'ADMIN',
                 password: '',
                 confirmPassword: ''
             });
         } else {
             setForm({
                 username: '',
-                isAdmin: false,
+                email: '',
+                admin: false,
                 password: '',
                 confirmPassword: ''
             });
@@ -70,35 +77,50 @@ export default function UserFormModal({ user, onClose, onSaved }) {
         setError(null);
         
         try {
-            const url = isNew ? '/api/users' : `/api/users/${user.id}`;
+            const endpoint = isNew ? '/api/admin/users' : `/api/admin/users/${user.id}`;
             const method = isNew ? 'POST' : 'PUT';
             
-            // Only include password in payload if it's provided
+            // Prepare the request payload
             const payload = {
                 username: form.username,
-                isAdmin: form.isAdmin
+                email: form.email,
+                admin: form.admin
             };
             
-            if (form.password) {
+            // For new users or password changes, include password fields
+            if (isNew || form.password) {
                 payload.password = form.password;
+                payload.confirmPassword = form.confirmPassword;
             }
             
-            const response = await fetch(url, {
+            const response = await fetch(endpoint, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
                 body: JSON.stringify(payload)
             });
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || 'Failed to save user');
+                throw new Error(errorData.error || errorData.message || `Failed to ${isNew ? 'create' : 'update'} user`);
             }
             
-            const savedUser = await response.json();
+            const data = await response.json().catch(() => ({}));
+            
+            // Create a consistent user object to pass back
+            const savedUser = {
+                id: data.id || user.id,
+                username: data.username || form.username,
+                email: data.email || form.email,
+                role: data.role || (form.admin ? 'ADMIN' : 'USER')
+            };
+            
             onSaved(savedUser);
         } catch (err) {
             console.error("Error saving user:", err);
-            setError(err.message || 'Error saving user. Please try again.');
+            setError(err.message || `Error ${isNew ? 'creating' : 'updating'} user. Please try again.`);
             setLoading(false);
         }
     };
@@ -132,9 +154,25 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                             value={form.username}
                             onChange={handleChange}
                             placeholder="Enter username"
+                            disabled={loading}
                         />
                         <Form.Control.Feedback type="invalid">
                             Username is required
+                        </Form.Control.Feedback>
+                    </Form.Group>
+                    
+                    <Form.Group className="mb-3">
+                        <Form.Label>Email</Form.Label>
+                        <Form.Control
+                            name="email"
+                            type="email"
+                            value={form.email}
+                            onChange={handleChange}
+                            placeholder="Enter email address"
+                            disabled={loading}
+                        />
+                        <Form.Control.Feedback type="invalid">
+                            Please enter a valid email
                         </Form.Control.Feedback>
                     </Form.Group>
                     
@@ -152,10 +190,12 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                                 placeholder={isNew ? "Enter password" : "Enter new password"}
                                 required={isNew}
                                 minLength={6}
+                                disabled={loading}
                             />
                             <Button
                                 variant="outline-secondary"
                                 onClick={() => setShowPassword(!showPassword)}
+                                disabled={loading}
                             >
                                 {showPassword ? <FaEyeSlash /> : <FaEye />}
                             </Button>
@@ -177,6 +217,7 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                             placeholder="Confirm password"
                             required={isNew || form.password !== ''}
                             isInvalid={validated && form.password !== form.confirmPassword}
+                            disabled={loading}
                         />
                         <Form.Control.Feedback type="invalid">
                             Passwords do not match
@@ -188,9 +229,10 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                             type="switch"
                             id="user-admin-switch"
                             label="Admin privileges"
-                            name="isAdmin"
-                            checked={form.isAdmin}
+                            name="admin"
+                            checked={form.admin}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                         <Form.Text className="text-muted">
                             Admins have full access to the admin dashboard and all management functions.

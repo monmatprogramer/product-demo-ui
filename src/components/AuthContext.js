@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
             try {
                 const storedUser = localStorage.getItem('user');
                 const token = localStorage.getItem('token');
+                const refreshToken = localStorage.getItem('refreshToken');
                 
                 if (storedUser && token) {
                     setUser(JSON.parse(storedUser));
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }) => {
                 // Clear potentially corrupted storage
                 localStorage.removeItem('user');
                 localStorage.removeItem('token');
+                localStorage.removeItem('refreshToken');
             } finally {
                 setLoading(false);
             }
@@ -61,26 +63,24 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(data?.error || data?.message || 'Login failed');
             }
             
-            // Determine if user is admin based on response or username
-            // In a production app, this should come from the server response
-            const isAdmin = 
-                data?.role === 'ADMIN' || 
-                username.toLowerCase() === 'admin';
-            
             // Create user object
             const userObj = {
-                username,
-                isAdmin,
-                // You can add additional user data from the response here
-                email: data?.email || '',
+                username: data.username,
+                email: data.email || '',
+                isAdmin: data.role === 'ADMIN',
+                userId: data.userId
             };
             
             // Store auth data in localStorage
             localStorage.setItem('user', JSON.stringify(userObj));
             
-            // Store token if available
+            // Store tokens
             if (data.token) {
                 localStorage.setItem('token', data.token);
+            }
+            
+            if (data.refreshToken) {
+                localStorage.setItem('refreshToken', data.refreshToken);
             }
             
             // Update context state
@@ -123,10 +123,63 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(data?.error || data?.message || 'Registration failed');
             }
             
+            // If registration returns tokens, store them
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+            }
+            
+            if (data.refreshToken) {
+                localStorage.setItem('refreshToken', data.refreshToken);
+            }
+            
+            // Create and store user object
+            const userObj = {
+                username: data.username,
+                email: data.email || '',
+                isAdmin: data.role === 'ADMIN',
+                userId: data.userId
+            };
+            
+            localStorage.setItem('user', JSON.stringify(userObj));
+            setUser(userObj);
+            
             return true;
         } catch (err) {
             console.error('Registration error:', err);
             setError(err.message || 'Failed to register. Please try again.');
+            return false;
+        }
+    };
+
+    /**
+     * Refresh the access token using the refresh token
+     * @returns {Promise<boolean>} - Whether token refresh was successful
+     */
+    const refreshAccessToken = async () => {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) return false;
+        
+        try {
+            const response = await fetch('/api/auth/refresh-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refreshToken })
+            });
+            
+            if (!response.ok) return false;
+            
+            const data = await response.json();
+            
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                return true;
+            }
+            
+            return false;
+        } catch (err) {
+            console.error('Token refresh error:', err);
             return false;
         }
     };
@@ -137,17 +190,23 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         try {
             // Call logout endpoint if it exists
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: getAuthHeaders()
-            }).catch(() => {
-                // Ignore network errors for logout
-                console.log('Logout request failed, but proceeding with local logout');
-            });
+            const token = localStorage.getItem('token');
+            if (token) {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }).catch(() => {
+                    // Ignore network errors for logout
+                    console.log('Logout request failed, but proceeding with local logout');
+                });
+            }
         } finally {
             // Always clear local storage and state regardless of API response
             localStorage.removeItem('user');
             localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
             setUser(null);
         }
     };
@@ -179,6 +238,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         register,
+        refreshAccessToken,
         isAuthenticated,
         getAuthHeaders
     };
