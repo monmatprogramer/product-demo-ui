@@ -1,5 +1,5 @@
 // src/components/RegisterPage.js
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
     Container,
     Card,
@@ -12,10 +12,11 @@ import {
 import { FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
 import { AuthContext } from './AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { AuthService } from '../services/AuthService';
 import './AuthForms.css';
 
 const RegisterPage = () => {
-    const { register } = useContext(AuthContext);
+    const { register, isAuthenticated } = useContext(AuthContext);
     const navigate = useNavigate();
     
     const [formData, setFormData] = useState({
@@ -29,6 +30,13 @@ const RegisterPage = () => {
     const [validated, setValidated] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (isAuthenticated()) {
+            navigate('/');
+        }
+    }, [isAuthenticated, navigate]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -52,6 +60,13 @@ const RegisterPage = () => {
             return;
         }
         
+        // Check password length
+        if (formData.password.length < 6) {
+            setError('Password must be at least 6 characters');
+            setValidated(true);
+            return;
+        }
+        
         if (!form.checkValidity()) {
             setValidated(true);
             return;
@@ -60,7 +75,7 @@ const RegisterPage = () => {
         setIsLoading(true);
         
         try {
-            // Use register function from context
+            // Use register function from context that now connects to the API
             const success = await register({
                 username: formData.username.trim(),
                 email: formData.email.trim(),
@@ -68,7 +83,7 @@ const RegisterPage = () => {
             });
             
             if (success) {
-                // Navigate to home page after successful registration
+                // Navigate to home page after successful registration and login
                 navigate('/', { replace: true });
             } else {
                 throw new Error('Registration failed. Please try again.');

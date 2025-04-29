@@ -1,5 +1,5 @@
 // src/components/LoginPage.js
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
     Container,
     Card,
@@ -13,10 +13,11 @@ import {
 import { FaEye, FaEyeSlash, FaSignInAlt } from 'react-icons/fa';
 import { AuthContext } from './AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { AuthService } from '../services/AuthService';
 import './AuthForms.css';
 
 const LoginPage = () => {
-    const { login, error: contextError, logout } = useContext(AuthContext);
+    const { login, error: contextError, logout, isAuthenticated } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
     
@@ -37,6 +38,13 @@ const LoginPage = () => {
     const [resetError, setResetError] = useState('');
     const [resetLoading, setResetLoading] = useState(false);
 
+    // Redirect if already logged in
+    useEffect(() => {
+        if (isAuthenticated()) {
+            navigate(from, { replace: true });
+        }
+    }, [isAuthenticated, navigate, from]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -54,9 +62,8 @@ const LoginPage = () => {
             // First ensure we're logged out to clear any previous state
             logout();
             
-            // Use the login function from AuthContext
-            // Make sure to pass both username and password
-            const success = login(username.trim(), password);
+            // Use the login function from AuthContext with API integration
+            const success = await login(username.trim(), password);
             
             if (!success) {
                 throw new Error(contextError || 'Login failed. Please check your credentials.');
@@ -83,15 +90,15 @@ const LoginPage = () => {
         setResetLoading(true);
         
         try {
-            // In a demo implementation, we'll just simulate a successful reset
-            // Wait a moment to simulate network request
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Use our AuthService to handle password reset
+            await AuthService.forgotPassword(resetEmail);
             
-            // Show success regardless of whether email exists (for security)
+            // Always show success for security (don't reveal if email exists)
             setResetSent(true);
         } catch (err) {
             // Still show success even on error for security
             setResetSent(true);
+            console.error('Error requesting password reset:', err);
         } finally {
             setResetLoading(false);
         }
@@ -147,9 +154,6 @@ const LoginPage = () => {
                                     Please enter your password.
                                 </Form.Control.Feedback>
                             </InputGroup>
-                            <Form.Text className="text-muted">
-                                Demo credentials: admin/admin for admin access
-                            </Form.Text>
                         </Form.Group>
 
                         <div className="d-flex justify-content-between align-items-center mb-3">

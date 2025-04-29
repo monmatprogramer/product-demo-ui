@@ -20,6 +20,7 @@ import {
   FaEyeSlash,
   FaSearch,
 } from "react-icons/fa";
+import { UserService } from "../../services/UserService";
 
 export default function UserManagement() {
   // Get auth context with proper functions
@@ -57,28 +58,11 @@ export default function UserManagement() {
     // Reset state
     setLoading(true);
     setError(null);
+    setIsRefreshing(true);
 
     try {
-      // For demo purposes, we'll create mock data if none exists
-      const storedUsers = localStorage.getItem("adminUsers");
-      let adminUsers = [];
-
-      if (storedUsers) {
-        adminUsers = JSON.parse(storedUsers);
-      } else {
-        // Create initial admin user if none exists
-        adminUsers = [
-          {
-            id: 1,
-            username: "admin",
-            email: "admin@example.com",
-            role: "ADMIN",
-          },
-        ];
-        localStorage.setItem("adminUsers", JSON.stringify(adminUsers));
-      }
-
-      setUsers(adminUsers);
+      const response = await UserService.getAllUsers();
+      setUsers(response || []);
     } catch (err) {
       console.error("Error fetching users:", err);
       setError(err.message || "An error occurred while fetching users");
@@ -165,59 +149,33 @@ export default function UserManagement() {
     setModalError("");
 
     try {
-      // Get current users
-      const storedUsers = localStorage.getItem("adminUsers");
-      let adminUsers = storedUsers ? JSON.parse(storedUsers) : [];
+      const userData = {
+        username: userForm.username,
+        email: userForm.email,
+        role: userForm.admin ? "ADMIN" : "USER",
+      };
 
-      // Check if username already exists for new users
-      if (
-        modalMode === "create" &&
-        adminUsers.some((u) => u.username === userForm.username)
-      ) {
-        throw new Error("Username already exists");
+      // Add password only if provided
+      if (userForm.password) {
+        userData.password = userForm.password;
       }
 
       if (modalMode === "create") {
         // Create new user
-        const newUser = {
-          id:
-            adminUsers.length > 0
-              ? Math.max(...adminUsers.map((u) => u.id)) + 1
-              : 1,
-          username: userForm.username,
-          email: userForm.email,
-          role: userForm.admin ? "ADMIN" : "USER",
-        };
-
-        adminUsers.push(newUser);
+        await UserService.createUser(userData);
       } else {
         // Update existing user
-        adminUsers = adminUsers.map((user) => {
-          if (user.id === currentUser.id) {
-            return {
-              ...user,
-              username: userForm.username,
-              email: userForm.email,
-              role: userForm.admin ? "ADMIN" : "USER",
-            };
-          }
-          return user;
-        });
+        await UserService.updateUser(currentUser.id, userData);
       }
 
-      // Save to local storage
-      localStorage.setItem("adminUsers", JSON.stringify(adminUsers));
-
-      // Update state
-      setUsers(adminUsers);
+      // Refresh the user list
+      await fetchUsers();
 
       // Close modal
       setShowModal(false);
 
       // Show success message
-      setError(
-        `User ${modalMode === "create" ? "created" : "updated"} successfully`
-      );
+      setError(`User ${modalMode === "create" ? "created" : "updated"} successfully`);
       setTimeout(() => setError(null), 3000);
     } catch (err) {
       console.error(
@@ -235,18 +193,10 @@ export default function UserManagement() {
     if (!userToDelete) return;
 
     try {
-      // Get current users
-      const storedUsers = localStorage.getItem("adminUsers");
-      let adminUsers = storedUsers ? JSON.parse(storedUsers) : [];
-
-      // Filter out deleted user
-      adminUsers = adminUsers.filter((user) => user.id !== userToDelete.id);
-
-      // Save to local storage
-      localStorage.setItem("adminUsers", JSON.stringify(adminUsers));
-
-      // Update state
-      setUsers(adminUsers);
+      await UserService.deleteUser(userToDelete.id);
+      
+      // Refresh the user list
+      await fetchUsers();
 
       // Show success message
       setError("User deleted successfully");
@@ -269,7 +219,7 @@ export default function UserManagement() {
       setError("You must be logged in to view this content");
       setLoading(false);
     }
-  }, [isAuthenticated, fetchUsers]); // Added fetchUsers to dependencies
+  }, [isAuthenticated()]); // Added fetchUsers to dependencies
 
   // Filter users based on search term
   const filteredUsers = users.filter(

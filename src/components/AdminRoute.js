@@ -13,7 +13,7 @@ const AdminRoute = ({ children }) => {
         return <Navigate to="/login" state={{ from: loc }} replace />;
     }
     
-    // Then check if the user is an admin
+    // Then check if the user is an admin based on role from API
     if (!user?.isAdmin) {
         console.log("Not an admin, redirecting to home");
         // User is authenticated but not an admin, redirect to home page
