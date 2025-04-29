@@ -186,10 +186,10 @@ function App() {
               }
             />
             <Route
-              path="/admin/manage-users"
+              path="/admin/users"
               element={
                 <AdminRoute>
-                  <MyComponent />
+                  <UserManagement />
                 </AdminRoute>
               }
             />

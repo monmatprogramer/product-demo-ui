@@ -1,6 +1,5 @@
-// src/context/AuthContext.js
+// src/components/AuthContext.js
 import React, { createContext, useState, useEffect } from "react";
-import { AuthService } from "../services/AuthService";
 
 export const AuthContext = createContext();
 
@@ -9,52 +8,61 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(null);
-  const [refreshToken, setRefreshToken] = useState(null);
 
   // on mount, check localStorage
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const storedToken = localStorage.getItem("token");
-    const storedRefreshToken = localStorage.getItem("refreshToken");
     
     if (storedUser && storedToken) {
       try {
         setUser(JSON.parse(storedUser));
         setToken(storedToken);
-        setRefreshToken(storedRefreshToken);
       } catch (error) {
         console.error("Error parsing stored user:", error);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
-        localStorage.removeItem("refreshToken");
       }
     }
     setLoading(false);
   }, []);
 
+  // Mock login function - in a real app, this would call an API
   const login = async (username, password) => {
     setError(null);
     
     try {
-      const data = await AuthService.login(username, password);
+      // For demo purposes, simulate API call using localStorage
+      const storedUsers = localStorage.getItem("adminUsers");
+      const users = storedUsers ? JSON.parse(storedUsers) : [];
       
-      // Create user object from response
+      // Find user
+      const foundUser = users.find(user => 
+          user.username === username.trim()
+      );
+      
+      if (!foundUser) {
+          throw new Error('Invalid username or password');
+      }
+      
+      // Create user object
       const userData = {
-        userId: data.userId,
-        username: data.username,
-        email: data.email || null,
-        isAdmin: data.role === "ADMIN", // Adjust based on your API response
+          userId: foundUser.id,
+          username: foundUser.username,
+          email: foundUser.email,
+          isAdmin: foundUser.role === 'ADMIN'
       };
-
+      
+      // Generate mock token
+      const mockToken = "demo-token-" + Math.random().toString(36).substring(2);
+      
       // Store in localStorage
       localStorage.setItem("user", JSON.stringify(userData));
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("refreshToken", data.refreshToken);
-
+      localStorage.setItem("token", mockToken);
+      
       // Update state
       setUser(userData);
-      setToken(data.token);
-      setRefreshToken(data.refreshToken);
+      setToken(mockToken);
       
       return true;
     } catch (err) {
@@ -64,19 +72,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Mock register function
   const register = async (userData) => {
     setError(null);
 
     try {
-      await AuthService.register({
-        username: userData.username,
-        email: userData.email,
-        password: userData.password
-        // Add any other required fields based on your API
-      });
-
-      // If registration is successful, automatically log them in
-      return await login(userData.username, userData.password);
+      // For demo purposes, simulate API call using localStorage
+      const storedUsers = localStorage.getItem("adminUsers");
+      let users = storedUsers ? JSON.parse(storedUsers) : [];
+      
+      // Check if username already exists
+      if (users.some(user => user.username === userData.username.trim())) {
+          throw new Error('Username already exists');
+      }
+      
+      // Create new user
+      const newUser = {
+          id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+          username: userData.username.trim(),
+          email: userData.email ? userData.email.trim() : null,
+          role: 'USER'
+      };
+      
+      // Add to array
+      users.push(newUser);
+      
+      // Save to localStorage
+      localStorage.setItem("adminUsers", JSON.stringify(users));
+      
+      // Auto login after registration
+      return login(userData.username, userData.password);
     } catch (err) {
       console.error("Registration error:", err);
       setError(err.message || "Failed to register. Please try again.");
@@ -87,10 +112,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
     setUser(null);
     setToken(null);
-    setRefreshToken(null);
   };
 
   const isAuthenticated = () => {
@@ -100,34 +123,6 @@ export const AuthProvider = ({ children }) => {
   // Get authentication headers for API requests
   const getAuthHeaders = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
-  // Refresh the access token using the refresh token
-  const refreshAccessToken = async () => {
-    if (!refreshToken) {
-      return false;
-    }
-    
-    try {
-      const data = await AuthService.refreshToken(refreshToken);
-      
-      // Update token in localStorage and state
-      localStorage.setItem("token", data.token);
-      setToken(data.token);
-      
-      // If the API also returns a new refresh token, update it too
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
-        setRefreshToken(data.refreshToken);
-      }
-      
-      return true;
-    } catch (err) {
-      console.error("Token refresh error:", err);
-      // If refresh fails, log the user out
-      logout();
-      return false;
-    }
   };
 
   return (
@@ -140,7 +135,6 @@ export const AuthProvider = ({ children }) => {
         register,
         isAuthenticated,
         getAuthHeaders,
-        refreshAccessToken,
         loading,
         error,
       }}

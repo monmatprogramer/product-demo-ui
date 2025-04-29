@@ -12,7 +12,6 @@ import {
 import { FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
 import { AuthContext } from './AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { AuthService } from '../services/AuthService';
 import './AuthForms.css';
 
 const RegisterPage = () => {
@@ -75,23 +74,49 @@ const RegisterPage = () => {
         setIsLoading(true);
         
         try {
-            // Use register function from context that now connects to the API
-            const success = await register({
-                username: formData.username.trim(),
-                email: formData.email.trim(),
-                password: formData.password
-            });
+            // Using localStorage for persistence in this example
+            const storedUsers = localStorage.getItem("adminUsers");
+            let users = storedUsers ? JSON.parse(storedUsers) : [];
             
-            if (success) {
-                // Navigate to home page after successful registration and login
-                navigate('/', { replace: true });
-            } else {
-                throw new Error('Registration failed. Please try again.');
+            // Check if username already exists
+            if (users.some(user => user.username === formData.username.trim())) {
+                throw new Error('Username already exists');
             }
+            
+            // Create new user object
+            const newUser = {
+                id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+                username: formData.username.trim(),
+                email: formData.email.trim() || null,
+                role: 'USER'
+            };
+            
+            // Add user to array
+            users.push(newUser);
+            
+            // Save to localStorage
+            localStorage.setItem("adminUsers", JSON.stringify(users));
+            
+            // Create a user object for the logged-in session
+            const userData = {
+                userId: newUser.id,
+                username: newUser.username,
+                email: newUser.email,
+                isAdmin: false
+            };
+            
+            // Store in localStorage (simulating login)
+            localStorage.setItem("user", JSON.stringify(userData));
+            localStorage.setItem("token", "demo-token-" + Math.random().toString(36).substring(2));
+            
+            // Now we normally would call the register function from context
+            // but since we're mocking, we'll redirect directly
+            setTimeout(() => {
+                navigate('/', { replace: true });
+            }, 500);
         } catch (err) {
             console.error('Registration error:', err);
             setError(err.message || 'Failed to register. Please try again.');
-        } finally {
             setIsLoading(false);
         }
     };
