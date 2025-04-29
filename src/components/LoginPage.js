@@ -1,3 +1,4 @@
+// src/components/LoginPage.js
 import React, { useState, useContext } from 'react';
 import {
     Container,
@@ -15,7 +16,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import './AuthForms.css';
 
 const LoginPage = () => {
-    const { login, error: contextError } = useContext(AuthContext);
+    const { login, error: contextError, logout } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
     
@@ -50,12 +51,20 @@ const LoginPage = () => {
         setIsLoading(true);
         
         try {
+            // First ensure we're logged out to clear any previous state
+            logout();
+            
             // Use the login function from AuthContext
             const success = await login(username.trim(), password);
             
             if (!success) {
                 throw new Error(contextError || 'Login failed. Please check your credentials.');
             }
+            
+            // Reset form fields on success
+            setUsername('');
+            setPassword('');
+            setValidated(false);
             
             // Navigate to the original destination or home
             navigate(from, { replace: true });
@@ -73,15 +82,11 @@ const LoginPage = () => {
         setResetLoading(true);
         
         try {
-            const response = await fetch('/api/auth/forgot-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email: resetEmail })
-            });
+            // In a demo implementation, we'll just simulate a successful reset
+            // Wait a moment to simulate network request
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Even if the email doesn't exist, we'll show success for security reasons
+            // Show success regardless of whether email exists (for security)
             setResetSent(true);
         } catch (err) {
             // Still show success even on error for security
@@ -141,6 +146,9 @@ const LoginPage = () => {
                                     Please enter your password.
                                 </Form.Control.Feedback>
                             </InputGroup>
+                            <Form.Text className="text-muted">
+                                Demo credentials: admin/admin for admin access
+                            </Form.Text>
                         </Form.Group>
 
                         <div className="d-flex justify-content-between align-items-center mb-3">

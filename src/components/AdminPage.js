@@ -1,16 +1,56 @@
-import React from 'react';
-import { Container, Row, Col, Nav } from 'react-bootstrap';
-import { NavLink, Outlet } from 'react-router-dom';
+// src/components/AdminPage.js
+import React, { useContext } from 'react';
+import { Container, Row, Col, Nav, Alert, Button } from 'react-bootstrap'; // Added Button import
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { 
     FaTachometerAlt, 
     FaBox, 
     FaUsers, 
     FaChartBar, 
-    FaFileAlt 
+    FaFileAlt,
+    FaExclamationTriangle
 } from 'react-icons/fa';
+import { AuthContext } from '../context/AuthContext';
 import './AdminPage.css';
 
 export default function AdminPage() {
+    const { user, isAuthenticated } = useContext(AuthContext);
+    const navigate = useNavigate();
+    
+    // Check authentication and admin status
+    if (!isAuthenticated()) {
+        return (
+            <Container fluid className="py-5">
+                <Alert variant="warning" className="d-flex align-items-center">
+                    <FaExclamationTriangle className="me-2" />
+                    <div>
+                        You need to be logged in to access the admin panel.
+                        <Button 
+                            variant="link" 
+                            className="ps-2"
+                            onClick={() => navigate('/login', { state: { from: '/admin' } })}
+                        >
+                            Log in now
+                        </Button>
+                    </div>
+                </Alert>
+            </Container>
+        );
+    }
+    
+    if (!user?.isAdmin) {
+        return (
+            <Container fluid className="py-5">
+                <Alert variant="danger" className="d-flex align-items-center">
+                    <FaExclamationTriangle className="me-2" />
+                    <div>
+                        You don't have permission to access the admin panel. Admin privileges required.
+                    </div>
+                </Alert>
+            </Container>
+        );
+    }
+
     return (
         <Container fluid className="admin-container py-4">
             <Row className="g-4">

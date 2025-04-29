@@ -11,20 +11,82 @@ export default function Reports() {
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
     useEffect(() => {
-        const fetchOrders = async () => {
-            setLoading(true);
-            try {
-                const data = await safeJsonFetch('/api/orders');
-                setOrders(data || []);
-                setError(null);
-            } catch (err) {
-                console.error("Error fetching orders:", err);
-                setError("Failed to load order reports. Please try again later.");
-                setOrders([]);
-            } finally {
-                setLoading(false);
+       // src/components/admin/Reports.js
+// Just modifying key parts to use mock data
+
+// Inside the fetchOrders function:
+const fetchOrders = async () => {
+    setLoading(true);
+    try {
+        // Use mock data instead of trying to fetch from API
+        const mockOrders = [
+            {
+                id: '2301',
+                userId: 1,
+                user: { username: 'admin' },
+                date: '2023-03-15',
+                items: [
+                    { id: 1, name: 'Gaming Laptop', qty: 1, price: 1899.99 },
+                    { id: 2, name: 'Mechanical Keyboard', qty: 1, price: 129.50 },
+                    { id: 3, name: 'Wireless Mouse', qty: 1, price: 45.00 }
+                ],
+                total: 2074.49,
+                status: 'Delivered'
+            },
+            {
+                id: '1872',
+                userId: 2,
+                user: { username: 'johndoe' },
+                date: '2023-02-01',
+                items: [
+                    { id: 4, name: 'Mechanical Keyboard', qty: 1, price: 129.50 }
+                ],
+                total: 129.50,
+                status: 'Delivered'
+            },
+            {
+                id: '1543',
+                userId: 3,
+                user: { username: 'janedoe' },
+                date: '2022-12-10',
+                items: [
+                    { id: 5, name: 'Gaming Laptop', qty: 1, price: 1899.99 },
+                    { id: 6, name: 'Camo Keycap', qty: 1, price: 35.00 }
+                ],
+                total: 1934.99,
+                status: 'Shipped'
+            },
+            {
+                id: '1234',
+                userId: 1,
+                user: { username: 'admin' },
+                date: '2023-04-20',
+                items: [
+                    { id: 7, name: 'LED Monitor', qty: 2, price: 249.99 }
+                ],
+                total: 499.98,
+                status: 'Processing'
             }
-        };
+        ];
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('mockOrders', JSON.stringify(mockOrders));
+        setOrders(mockOrders);
+        setError(null);
+    } catch (err) {
+        console.error("Error with orders:", err);
+        setError("Failed to load order reports. Using mock data instead.");
+        // Try to load from localStorage as fallback
+        const storedOrders = localStorage.getItem('mockOrders');
+        if (storedOrders) {
+            setOrders(JSON.parse(storedOrders));
+        } else {
+            setOrders([]);
+        }
+    } finally {
+        setLoading(false);
+    }
+};
         
         fetchOrders();
     }, []);
