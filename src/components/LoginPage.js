@@ -55,7 +55,7 @@ const LoginPage = () => {
             logout();
             
             // Use the login function from AuthContext
-            const success = await login(username.trim(), password);
+            const success = login(username.trim(), password);
             
             if (!success) {
                 throw new Error(contextError || 'Login failed. Please check your credentials.');

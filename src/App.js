@@ -32,6 +32,7 @@ import UserManagement from "./components/admin/UserManagement";
 import Reports from "./components/admin/Reports";
 import Analytics from "./components/admin/Analytics";
 import MyComponent from './components/MyComponent';
+// import {MyComponent} from './components/MyComponent';
 
 function App() {
   const [products, setProducts] = useState([]);
