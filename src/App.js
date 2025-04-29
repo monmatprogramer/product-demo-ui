@@ -20,7 +20,7 @@ import Loader from "./components/Loader";
 import Footer from "./components/Footer";
 
 import { getCart } from "./utils/cartUtils";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider } from "./components/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 
 import "./App.css";

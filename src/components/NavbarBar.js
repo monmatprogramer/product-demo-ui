@@ -6,22 +6,21 @@ import {
   Form,
   Nav,
   Badge,
-  NavDropdown,
-  Image,
+
   Button,
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaSearch,
   FaShoppingCart,
-  FaUserCircle,
+
   FaUser,
   FaSignOutAlt,
   FaClipboardList,
-  FaCog,
+
   FaShieldAlt,
 } from "react-icons/fa";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "./AuthContext";
 import "./NavbarBar.css";
 
 const NavbarBar = ({ searchValue, onSearch, cartCount }) => {

@@ -1,3 +1,4 @@
+// src/components/RegisterPage.js
 import React, { useState, useContext } from 'react';
 import {
     Container,
@@ -9,7 +10,7 @@ import {
     Spinner
 } from 'react-bootstrap';
 import { FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from './AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import './AuthForms.css';
 

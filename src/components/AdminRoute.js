@@ -1,7 +1,7 @@
 // src/components/AdminRoute.js
 import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from './AuthContext';
 
 const AdminRoute = ({ children }) => {
     const { user, isAuthenticated } = useContext(AuthContext);

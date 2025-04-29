@@ -22,7 +22,7 @@ import {
   FaEyeSlash,
   FaSave,
 } from "react-icons/fa";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "./AuthContext";
 import "./ProfilePage.css";
 
 const ProfilePage = () => {

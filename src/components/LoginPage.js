@@ -11,7 +11,7 @@ import {
     Spinner
 } from 'react-bootstrap';
 import { FaEye, FaEyeSlash, FaSignInAlt } from 'react-icons/fa';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from './AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import './AuthForms.css';
 
@@ -55,6 +55,7 @@ const LoginPage = () => {
             logout();
             
             // Use the login function from AuthContext
+            // Make sure to pass both username and password
             const success = login(username.trim(), password);
             
             if (!success) {

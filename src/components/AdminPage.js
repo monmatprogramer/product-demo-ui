@@ -10,7 +10,7 @@ import {
     FaFileAlt,
     FaExclamationTriangle
 } from 'react-icons/fa';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../components/AuthContext';
 import './AdminPage.css';
 
 export default function AdminPage() {

@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { Container, Form, Button, Alert, Row, Col } from "react-bootstrap";
 import { clearCart } from "../utils/cartUtils";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "./AuthContext";
 
 const CheckoutPage = () => {
   const { user } = useContext(AuthContext);

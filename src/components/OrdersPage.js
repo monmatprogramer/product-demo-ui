@@ -9,7 +9,7 @@ import {
     Col,
     Modal
 } from 'react-bootstrap';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from './AuthContext';
 import { FaBoxOpen, FaShippingFast, FaCheckCircle } from 'react-icons/fa';
 import './OrdersPage.css';
 
