@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useContext } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Container, Row, Col } from "react-bootstrap";
 
@@ -20,8 +20,9 @@ import Loader from "./components/Loader";
 import Footer from "./components/Footer";
 
 import { getCart } from "./utils/cartUtils";
-import { AuthProvider } from "./components/AuthContext";
+import { AuthContext } from "./components/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
+import { safeJsonFetch } from "./utils/apiUtils";
 
 import "./App.css";
 import AdminPage from "./components/AdminPage";
@@ -86,37 +87,46 @@ function App() {
   const [category, setCategory] = useState("All");
   const [sortOrder, setSortOrder] = useState("");
   const navigate = useNavigate();
+  const auth = useContext(AuthContext);
 
   const cartCount = getCart().reduce((sum, p) => sum + p.qty, 0);
 
   useEffect(() => {
     // Fetch products from API or use mock data
-    fetch("/api/products")
-      .then((r) => {
-        if (!r.ok) {
-          throw new Error(`API error: ${r.status}`);
+    const fetchProducts = async () => {
+      try {
+        // Use auth headers if user is logged in
+        const headers = auth.isAuthenticated() ? auth.getAuthHeaders() : {};
+        
+        console.log("Fetching products with auth:", auth.isAuthenticated());
+        const response = await fetch("/api/products", { headers });
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
         }
-        return r.json();
-      })
-      .then((data) => {
+        
+        const data = await response.json();
         console.log("Fetched products:", data);
+        
         if (Array.isArray(data) && data.length > 0) {
           setProducts(data);
         } else {
           // If API returns empty or invalid data, use mock data
-          console.log("Using mock product data");
+          console.log("Using mock product data due to empty response");
           setProducts(MOCK_PRODUCTS);
         }
-        setLoading(false);
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error("Error fetching products:", error);
         // Use mock data on error
         console.log("Using mock product data due to error");
         setProducts(MOCK_PRODUCTS);
+      } finally {
         setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchProducts();
+  }, [auth]);
 
   const categories = useMemo(() => {
     // Safely create categories from products

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Container,
@@ -14,6 +14,7 @@ import {
 } from 'react-bootstrap';
 import { FaStar, FaStarHalf, FaRegStar } from 'react-icons/fa';
 import { getImageSrc, handleImgError } from '../utils/imageUtils';
+import { AuthContext } from '../components/AuthContext';
 import './ProductDetail.css';
 
 // Mock product data for fallback
@@ -70,23 +71,28 @@ const ProductDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const auth = useContext(AuthContext);
 
     useEffect(() => {
         // Try to fetch product details from API
-        fetch(`/api/products/${id}`)
-            .then(r => {
-                if (!r.ok) {
-                    throw new Error(`Failed to fetch product: ${r.status}`);
+        const fetchProductDetail = async () => {
+            try {
+                // Use auth headers if user is logged in
+                const headers = auth.isAuthenticated() ? auth.getAuthHeaders() : {};
+                
+                console.log(`Fetching product ${id} with auth:`, auth.isAuthenticated());
+                const response = await fetch(`/api/products/${id}`, { headers });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch product: ${response.status}`);
                 }
-                return r.json();
-            })
-            .then(data => {
+                
+                const data = await response.json();
                 console.log("Fetched product:", data);
                 setProduct(data);
                 setLoading(false);
                 setError(null);
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error("Error fetching product:", err);
                 
                 // Try to find a matching mock product
@@ -101,8 +107,11 @@ const ProductDetail = () => {
                 }
                 
                 setLoading(false);
-            });
-    }, [id]);
+            }
+        };
+
+        fetchProductDetail();
+    }, [id, auth]);
 
     if (loading) {
         return (

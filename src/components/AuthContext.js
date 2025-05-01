@@ -18,11 +18,17 @@ export const AuthProvider = ({ children }) => {
       try {
         setUser(JSON.parse(storedUser));
         setToken(storedToken);
+        console.log("Auth initialized from localStorage", { 
+          hasUser: true,
+          hasToken: true
+        });
       } catch (error) {
         console.error("Error parsing stored user:", error);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
       }
+    } else {
+      console.log("No stored auth found in localStorage");
     }
     setLoading(false);
   }, []);
@@ -85,37 +91,50 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         setToken(data.token);
         
+        console.log("Login successful, auth state updated", { 
+          hasUser: true, 
+          hasToken: true,
+          isAdmin: userData.isAdmin
+        });
+        
         return true;
       } catch (apiError) {
         console.error("API Login error:", apiError);
         
         // Check if we need to fall back to mock authentication for development
-        if (!window.confirm("API login failed. Do you want to use mock authentication for development?")) {
+        if (process.env.NODE_ENV === 'development' && 
+            window.confirm("API login failed. Do you want to use mock authentication for development?")) {
+          console.log("Falling back to mock authentication");
+          
+          // Mock authentication for development purposes
+          const mockUser = {
+            userId: 1,
+            username: username,
+            email: `${username}@example.com`,
+            isAdmin: username.toLowerCase() === 'admin' // Make 'admin' user an admin
+          };
+          
+          // Generate a mock token (just for structure, not a real JWT)
+          const mockToken = `mock-token-${Math.random().toString(36).substring(2)}`;
+          
+          // Store mock data
+          localStorage.setItem("user", JSON.stringify(mockUser));
+          localStorage.setItem("token", mockToken);
+          
+          // Update state
+          setUser(mockUser);
+          setToken(mockToken);
+          
+          console.log("Mock login successful", { 
+            hasUser: true, 
+            hasToken: true,
+            isAdmin: mockUser.isAdmin
+          });
+          
+          return true;
+        } else {
           throw apiError; // If user doesn't want mock auth, propagate the original error
         }
-        
-        console.log("Falling back to mock authentication");
-        
-        // Mock authentication for development purposes
-        const mockUser = {
-          userId: 1,
-          username: username,
-          email: `${username}@example.com`,
-          isAdmin: username.toLowerCase() === 'admin' // Make 'admin' user an admin
-        };
-        
-        // Generate a mock token
-        const mockToken = `mock-token-${Math.random().toString(36).substring(2)}`;
-        
-        // Store mock data
-        localStorage.setItem("user", JSON.stringify(mockUser));
-        localStorage.setItem("token", mockToken);
-        
-        // Update state
-        setUser(mockUser);
-        setToken(mockToken);
-        
-        return true;
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -160,37 +179,38 @@ export const AuthProvider = ({ children }) => {
         console.error("API Registration error:", apiError);
         
         // Check if we need to fall back to mock registration for development
-        if (!window.confirm("API registration failed. Do you want to use mock registration for development?")) {
+        if (process.env.NODE_ENV === 'development' && 
+            window.confirm("API registration failed. Do you want to use mock registration for development?")) {
+          console.log("Falling back to mock registration");
+          
+          // For demo purposes, simulate API call using localStorage
+          const storedUsers = localStorage.getItem("adminUsers");
+          let users = storedUsers ? JSON.parse(storedUsers) : [];
+          
+          // Check if username already exists
+          if (users.some(user => user.username === userData.username.trim())) {
+              throw new Error('Username already exists');
+          }
+          
+          // Create new user
+          const newUser = {
+              id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+              username: userData.username.trim(),
+              email: userData.email ? userData.email.trim() : null,
+              role: 'USER'
+          };
+          
+          // Add to array
+          users.push(newUser);
+          
+          // Save to localStorage
+          localStorage.setItem("adminUsers", JSON.stringify(users));
+          
+          // Auto login after registration
+          return login(userData.username, userData.password);
+        } else {
           throw apiError; // If user doesn't want mock auth, propagate the original error
         }
-        
-        console.log("Falling back to mock registration");
-        
-        // For demo purposes, simulate API call using localStorage
-        const storedUsers = localStorage.getItem("adminUsers");
-        let users = storedUsers ? JSON.parse(storedUsers) : [];
-        
-        // Check if username already exists
-        if (users.some(user => user.username === userData.username.trim())) {
-            throw new Error('Username already exists');
-        }
-        
-        // Create new user
-        const newUser = {
-            id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
-            username: userData.username.trim(),
-            email: userData.email ? userData.email.trim() : null,
-            role: 'USER'
-        };
-        
-        // Add to array
-        users.push(newUser);
-        
-        // Save to localStorage
-        localStorage.setItem("adminUsers", JSON.stringify(users));
-        
-        // Auto login after registration
-        return login(userData.username, userData.password);
       }
     } catch (err) {
       console.error("Registration error:", err);
@@ -205,6 +225,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("refreshToken");
     setUser(null);
     setToken(null);
+    console.log("Logged out, auth state cleared");
   };
 
   const isAuthenticated = () => {
