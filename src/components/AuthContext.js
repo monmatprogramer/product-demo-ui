@@ -61,100 +61,79 @@ export const AuthProvider = ({ children }) => {
   // Fetch products with improved error handling
   // Fetch products method for AuthContext.js
   // Updated fetchProducts method with authentication handling
-  const fetchProducts = useCallback(async () => {
-    try {
-      setLoading(true);
+  // Update this in AuthContext.js
+const fetchProducts = useCallback(async () => {
+  try {
+    setLoading(true);
 
-      // Get the token from localStorage
-      const token = localStorage.getItem("token");
+    // Get the token from localStorage
+    const token = localStorage.getItem("token");
 
-      // Prepare headers
-      const headers = {
-        "Content-Type": "application/json",
-        // Always include the Authorization header if token exists
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
+    // Prepare headers
+    const headers = {
+      "Content-Type": "application/json",
+      // Always include the Authorization header if token exists
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 
-      // Determine the API URL (use the port from the current environment)
-      const apiPort =
-        window.location.port === "3000" ? "8080" : window.location.port;
-      const apiUrl = `http://localhost:${apiPort}/api/products`;
+    // Use relative path with proxy instead of hard-coded URL
+    const response = await fetch("/api/products", {
+      method: "GET",
+      headers: headers,
+    });
 
-      // Fetch products
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: headers,
-      });
-
-      // Handle unauthorized access
-      if (response.status === 401) {
-        // Clear any invalid token
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-
-        // If in development, offer mock login
-        if (process.env.NODE_ENV === "development") {
-          console.warn(
-            "Unauthorized access. Using mock authentication for development."
-          );
-
-          // Mock login to get a token
-          const mockToken = `mock-token-${Date.now()}`;
-          localStorage.setItem("token", mockToken);
-
-          const mockUser = {
-            id: 1,
-            username: "demo_user",
-            email: "demo@example.com",
-            role: "USER",
-          };
-          localStorage.setItem("user", JSON.stringify(mockUser));
-
-          // Retry the fetch with mock token
-          return await fetchProducts();
-        } else {
-          throw new Error("Authentication required. Please log in.");
-        }
-      }
-
-      // Check if the response is successful
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // Parse the JSON response
-      const data = await response.json();
-
-      // Validate the data
-      if (Array.isArray(data) && data.length > 0) {
-        // Add some basic data validation if needed
-        const validProducts = data.filter(
-          (product) =>
-            product &&
-            product.id &&
-            product.name &&
-            typeof product.price === "number"
-        );
-
-        // Set the products
-        setProducts(validProducts);
-        setError(null);
-      } else {
-        // If no valid products, use mock data or set empty array
-        console.warn("No products returned from API");
-        setProducts(MOCK_PRODUCTS);
-        setError("No products found");
-      }
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-
-      // Fall back to mock products on error
-      setProducts(MOCK_PRODUCTS);
-      setError(error.message || "Failed to fetch products");
-    } finally {
-      setLoading(false);
+    // Log response info for debugging
+    console.log("Products API response status:", response.status);
+    
+    // Handle unauthorized access
+    if (response.status === 401) {
+      // Clear any invalid token
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      throw new Error("Authentication required. Please log in.");
     }
-  }, []);
+
+    // Check if the response is successful
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API Error Response:", errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Parse the JSON response
+    const data = await response.json();
+    console.log("Products fetched:", data);
+
+    // Validate the data
+    if (Array.isArray(data) && data.length > 0) {
+      // Add some basic data validation if needed
+      const validProducts = data.filter(
+        (product) =>
+          product &&
+          product.id &&
+          product.name &&
+          typeof product.price === "number"
+      );
+
+      // Set the products
+      setProducts(validProducts);
+      setError(null);
+    } else {
+      // If no valid products, use mock data or set empty array
+      console.warn("No products returned from API");
+      setProducts(MOCK_PRODUCTS);
+      setError("No products found");
+    }
+  } catch (error) {
+    console.error("Failed to fetch products:", error);
+
+    // Fall back to mock products on error
+    setProducts(MOCK_PRODUCTS);
+    setError(error.message || "Failed to fetch products");
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   // When calling this method in useEffect or elsewhere
   useEffect(() => {
@@ -168,12 +147,15 @@ export const AuthProvider = ({ children }) => {
 
   // Login function with improved error handling
   // Updated login method for AuthContext.js
+  // Update this in AuthContext.js
 const login = async (username, password) => {
   try {
     setLoading(true);
     setError(null);
 
-    // Determine the correct API endpoint for login
+    console.log("Attempting login for user:", username);
+
+    // Use relative URL for proxy to handle
     const loginUrl = '/api/auth/login';
 
     // Prepare the request body
@@ -181,6 +163,8 @@ const login = async (username, password) => {
       username: username.trim(),
       password: password
     };
+
+    console.log("Login request payload:", requestBody);
 
     // Make the login request
     const response = await fetch(loginUrl, {
@@ -191,18 +175,28 @@ const login = async (username, password) => {
       body: JSON.stringify(requestBody)
     });
 
+    // Log response for debugging
+    console.log("Login response status:", response.status);
+    
     // Check if the response is successful
     if (!response.ok) {
       // Try to parse error message from the response
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.message || 
-        `Login failed with status: ${response.status}`
-      );
+      let errorMessage;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || `Login failed with status: ${response.status}`;
+      } catch (e) {
+        // If we can't parse JSON, use text or status
+        const errorText = await response.text();
+        errorMessage = errorText || `Login failed with status: ${response.status}`;
+      }
+      console.error("Login error response:", errorMessage);
+      throw new Error(errorMessage);
     }
 
     // Parse the successful response
     const data = await response.json();
+    console.log("Login successful, received data:", data);
 
     // Validate the response structure
     if (!data.token) {
@@ -226,6 +220,8 @@ const login = async (username, password) => {
       isAdmin: data.role === 'ADMIN'
     };
 
+    console.log("Storing user data:", userData);
+
     // Store user data in localStorage
     localStorage.setItem('user', JSON.stringify(userData));
 
@@ -248,7 +244,6 @@ const login = async (username, password) => {
     setLoading(false);
   }
 };
-
   // Logout function
   const logout = () => {
     // Clear local storage

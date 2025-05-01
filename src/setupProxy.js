@@ -2,13 +2,18 @@
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 module.exports = function (app) {
+  console.log("Setting up API proxy to http://localhost:8080");
+  
   app.use(
     "/api",
     createProxyMiddleware({
       target: "http://localhost:8080",
       changeOrigin: true,
+      // Log all proxy activity
+      logLevel: 'debug',
       // Preserve authorization headers
       onProxyReq: (proxyReq, req) => {
+        console.log(`Proxy request: ${req.method} ${req.url}`);
         if (req.headers.authorization) {
           proxyReq.setHeader("Authorization", req.headers.authorization);
         }
