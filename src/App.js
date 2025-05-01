@@ -92,36 +92,41 @@ function App() {
 
   useEffect(() => {
     // Fetch products from API or use mock data
-    const fetchProducts = async () => {
-      try {
-        // No need to check auth here - let's simplify this function
-        console.log("Fetching products");
-        const response = await fetch("/api/products");
-        
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log("Fetched products:", data);
-        
-        if (Array.isArray(data) && data.length > 0) {
-          setProducts(data);
-        } else {
-          // If API returns empty or invalid data, use mock data
-          console.log("Using mock product data due to empty response");
-          setProducts(MOCK_PRODUCTS);
-        }
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        // Use mock data on error
-        console.log("Using mock product data due to error");
-        setProducts(MOCK_PRODUCTS);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    // Update the fetchProducts function in App.js
+const fetchProducts = async () => {
+  try {
+    // Check for authentication token
+    const token = localStorage.getItem("token");
+    const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+    
+    console.log("Fetching products");
+    const response = await fetch("/api/products", {
+      headers: headers
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Fetched products:", data);
+    
+    if (Array.isArray(data) && data.length > 0) {
+      setProducts(data);
+    } else {
+      // If API returns empty or invalid data, use mock data
+      console.log("Using mock product data due to empty response");
+      setProducts(MOCK_PRODUCTS);
+    }
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    // Use mock data on error
+    console.log("Using mock product data due to error");
+    setProducts(MOCK_PRODUCTS);
+  } finally {
+    setLoading(false);
+  }
+};
     fetchProducts();
   }, []);
 

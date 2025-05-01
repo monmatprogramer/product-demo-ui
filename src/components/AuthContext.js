@@ -8,30 +8,44 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(null);
-
+  const cartCount = getCart().reduce((sum, p) => sum + p.qty, 0);
   // on mount, check localStorage
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    
-    if (storedUser && storedToken) {
+    // Fetch products from API or use mock data
+    const fetchProducts = async () => {
       try {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-        console.log("Auth initialized from localStorage", { 
-          hasUser: true,
-          hasToken: true
-        });
+        // Use authentication headers if available
+        const headers = isAuthenticated && isAuthenticated() ? getAuthHeaders() : {};
+        
+        console.log("Fetching products", { isAuth: isAuthenticated ? isAuthenticated() : false });
+        const response = await fetch("/api/products", { headers });
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("Fetched products:", data);
+        
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+        } else {
+          // If API returns empty or invalid data, use mock data
+          console.log("Using mock product data due to empty response");
+          setProducts(MOCK_PRODUCTS);
+        }
       } catch (error) {
-        console.error("Error parsing stored user:", error);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+        console.error("Error fetching products:", error);
+        // Use mock data on error
+        console.log("Using mock product data due to error");
+        setProducts(MOCK_PRODUCTS);
+      } finally {
+        setLoading(false);
       }
-    } else {
-      console.log("No stored auth found in localStorage");
-    }
-    setLoading(false);
-  }, []);
+    };
+
+    fetchProducts();
+  }, [isAuthenticated, getAuthHeaders]);
 
   // Login function
   const login = async (username, password) => {
