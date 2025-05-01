@@ -28,49 +28,61 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Mock login function - in a real app, this would call an API
-  const login = async (username, password) => {
-    setError(null);
+ // Modified login function in AuthContext.js
+const login = async (username, password) => {
+  setError(null);
+  
+  try {
+    // For demo purposes, simulate API call using localStorage
+    const storedUsers = localStorage.getItem("adminUsers");
+    let users = storedUsers ? JSON.parse(storedUsers) : [];
     
-    try {
-      // For demo purposes, simulate API call using localStorage
-      const storedUsers = localStorage.getItem("adminUsers");
-      const users = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      // Find user
-      const foundUser = users.find(user => 
-          user.username === username.trim()
-      );
-      
-      if (!foundUser) {
-          throw new Error('Invalid username or password');
-      }
-      
-      // Create user object
-      const userData = {
-          userId: foundUser.id,
-          username: foundUser.username,
-          email: foundUser.email,
-          isAdmin: foundUser.role === 'ADMIN'
-      };
-      
-      // Generate mock token
-      const mockToken = "demo-token-" + Math.random().toString(36).substring(2);
-      
-      // Store in localStorage
-      localStorage.setItem("user", JSON.stringify(userData));
-      localStorage.setItem("token", mockToken);
-      
-      // Update state
-      setUser(userData);
-      setToken(mockToken);
-      
-      return true;
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err.message || "Failed to login. Please check your credentials.");
-      return false;
+    // If no users exist, initialize with admin user
+    if (users.length === 0) {
+      users = [{
+        id: 1,
+        username: 'admin',
+        email: null,
+        role: 'ADMIN'
+      }];
+      localStorage.setItem("adminUsers", JSON.stringify(users));
     }
-  };
+    
+    // Find user
+    const foundUser = users.find(user => 
+        user.username === username.trim()
+    );
+    
+    if (!foundUser) {
+        throw new Error('Invalid username or password');
+    }
+    
+    // Create user object
+    const userData = {
+        userId: foundUser.id,
+        username: foundUser.username,
+        email: foundUser.email,
+        isAdmin: foundUser.role === 'ADMIN'
+    };
+    
+    // Generate mock token
+    const mockToken = "demo-token-" + Math.random().toString(36).substring(2);
+    
+    // Store in localStorage
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", mockToken);
+    
+    // Update state
+    setUser(userData);
+    setToken(mockToken);
+    
+    return true;
+  } catch (err) {
+    console.error("Login error:", err);
+    setError(err.message || "Failed to login. Please check your credentials.");
+    return false;
+  }
+};
 
   // Mock register function
   const register = async (userData) => {
