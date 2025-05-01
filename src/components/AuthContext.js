@@ -1,8 +1,7 @@
 // src/components/AuthContext.js
 import React, { createContext, useState, useEffect, useCallback } from "react";
-import { getCart } from "../utils/cartUtils";
 
-// Define MOCK_PRODUCTS here to avoid the undefined error
+// Mock products to use as fallback
 const MOCK_PRODUCTS = [
   {
     id: 1,
@@ -31,20 +30,6 @@ const MOCK_PRODUCTS = [
     description: "27-inch LED monitor with high refresh rate",
     price: 249.99,
     imageUrl: ""
-  },
-  {
-    id: 5,
-    name: "USB Hub",
-    description: "Multi-port USB hub with fast charging",
-    price: 39.99,
-    imageUrl: ""
-  },
-  {
-    id: 6,
-    name: "External SSD",
-    description: "Fast external SSD with USB-C connectivity",
-    price: 89.99,
-    imageUrl: ""
   }
 ];
 
@@ -57,308 +42,199 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [products, setProducts] = useState([]);
 
-  // Define isAuthenticated and getAuthHeaders as regular functions
+  // Utility function to check authentication status
   const isAuthenticated = () => {
     return !!user && !!token;
   };
 
+  // Get authentication headers
   const getAuthHeaders = () => {
     const currentToken = localStorage.getItem("token");
-    if (!currentToken) {
-      console.warn("getAuthHeaders called but no token found in localStorage");
-      return { "Content-Type": "application/json" };
-    }
-    
-    return { 
-      "Authorization": `Bearer ${currentToken}`,
-      "Content-Type": "application/json" 
-    };
+    return currentToken 
+      ? { 
+          "Authorization": `Bearer ${currentToken}`,
+          "Content-Type": "application/json" 
+        }
+      : { "Content-Type": "application/json" };
   };
 
-  // Define fetchProducts as a useCallback so it can be referenced consistently
+  // Fetch products with improved error handling
   const fetchProducts = useCallback(async () => {
     try {
-      // Check for authentication token
-      const token = localStorage.getItem("token");
-      const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+      setLoading(true);
       
-      console.log("Fetching products");
-      const response = await fetch("/api/products", {
+      // Determine which port to use (your local setup seems to use different ports)
+      const apiPort = window.location.port === '3000' ? '8080' : window.location.port;
+      const apiUrl = `http://localhost:${apiPort}/api/products`;
+
+      // Prepare headers
+      const headers = getAuthHeaders();
+
+      const response = await fetch(apiUrl, { 
+        method: 'GET',
         headers: headers
       });
-      
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        // If unauthorized or other error, throw an error
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      console.log("Fetched products:", data);
       
+      // Validate data
       if (Array.isArray(data) && data.length > 0) {
         setProducts(data);
       } else {
-        // If API returns empty or invalid data, use mock data
-        console.log("Using mock product data due to empty response");
+        console.warn('Empty or invalid product data, using mock products');
         setProducts(MOCK_PRODUCTS);
       }
     } catch (error) {
-      console.error("Error fetching products:", error);
-      // Use mock data on error
-      console.log("Using mock product data due to error");
+      console.error('Failed to fetch products:', error);
+      
+      // Fall back to mock products
       setProducts(MOCK_PRODUCTS);
+      
+      // Set error state
+      setError(error.message || 'Failed to fetch products');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // on mount, check localStorage for existing auth
+  // Login function with improved error handling
+  const login = async (username, password) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Determine which port to use
+      const apiPort = window.location.port === '3000' ? '8080' : window.location.port;
+      const loginUrl = `http://localhost:${apiPort}/api/login`;
+
+      const response = await fetch(loginUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed. Please check your credentials.');
+      }
+
+      const data = await response.json();
+
+      // Store token and user info
+      localStorage.setItem('token', data.token);
+      
+      // Create user object
+      const userData = {
+        id: data.id || 1,
+        username: username,
+        email: data.email || `${username}@example.com`,
+        role: data.role || 'USER'
+      };
+
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Update state
+      setUser(userData);
+      setToken(data.token);
+
+      // Fetch products after successful login
+      await fetchProducts();
+
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      // Fallback to mock authentication for development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Falling back to mock authentication');
+        
+        // Mock successful login
+        const mockUserData = {
+          id: 1,
+          username: username,
+          email: `${username}@example.com`,
+          role: username.toLowerCase() === 'admin' ? 'ADMIN' : 'USER'
+        };
+        
+        const mockToken = `mock-token-${Date.now()}`;
+        
+        localStorage.setItem('token', mockToken);
+        localStorage.setItem('user', JSON.stringify(mockUserData));
+        
+        setUser(mockUserData);
+        setToken(mockToken);
+        
+        // Use mock products
+        setProducts(MOCK_PRODUCTS);
+        
+        return true;
+      }
+
+      setError(error.message || 'Login failed');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = () => {
+    // Clear local storage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    // Reset state
+    setUser(null);
+    setToken(null);
+    setProducts([]);
+  };
+
+  // Initialize on mount
   useEffect(() => {
-    // Try to load user and token from localStorage
-    const storedToken = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
-    
+    // Check for existing token and user
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
     if (storedToken && storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         setToken(storedToken);
-        console.log("Loaded auth from localStorage:", { hasUser: true, hasToken: true });
-      } catch (err) {
-        console.error("Error parsing stored user data:", err);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+        
+        // Try to fetch products if authenticated
+        fetchProducts();
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        logout();
       }
-    } else {
-      console.log("No stored auth found in localStorage");
     }
 
-    // Set loading to false after auth check
+    // Always set loading to false after initial check
     setLoading(false);
-    
-    // Fetch products after auth check
-    fetchProducts();
   }, [fetchProducts]);
 
-  // Login function
-  const login = async (username, password) => {
-    setError(null);
-    
-    try {
-      console.log("Attempting to login with:", username);
-      
-      // Try API login first
-      try {
-        // Use relative URL for API calls to leverage proxy in development
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password })
-        });
-        
-        if (!response.ok) {
-          console.error("Login failed with status:", response.status);
-          
-          // Try to extract error message from response
-          const errorText = await response.text();
-          let errorMessage;
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.message || "Invalid username or password";
-          } catch {
-            errorMessage = errorText || "Invalid username or password";
-          }
-          
-          throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        console.log("Login response:", data);
-        
-        // Store the token and user data
-        localStorage.setItem("token", data.token);
-        
-        if (data.refreshToken) {
-          localStorage.setItem("refreshToken", data.refreshToken);
-        }
-        
-        // Create user object from API data
-        const userData = {
-          userId: data.userId || data.id || 1,
-          username: username,
-          email: data.email || null,
-          isAdmin: data.role === "ADMIN" || 
-                  data.authorities?.some(a => a.authority === "ROLE_ADMIN") || 
-                  false
-        };
-        
-        localStorage.setItem("user", JSON.stringify(userData));
-        
-        // Update state
-        setUser(userData);
-        setToken(data.token);
-        
-        console.log("Login successful, auth state updated", { 
-          hasUser: true, 
-          hasToken: true,
-          isAdmin: userData.isAdmin
-        });
-        
-        // Refresh products after login
-        fetchProducts();
-        
-        return true;
-      } catch (apiError) {
-        console.error("API Login error:", apiError);
-        
-        // Check if we need to fall back to mock authentication for development
-        if (process.env.NODE_ENV === 'development' && 
-            window.confirm("API login failed. Do you want to use mock authentication for development?")) {
-          console.log("Falling back to mock authentication");
-          
-          // Mock authentication for development purposes
-          const mockUser = {
-            userId: 1,
-            username: username,
-            email: `${username}@example.com`,
-            isAdmin: username.toLowerCase() === 'admin' // Make 'admin' user an admin
-          };
-          
-          // Generate a mock token (just for structure, not a real JWT)
-          const mockToken = `mock-token-${Math.random().toString(36).substring(2)}`;
-          
-          // Store mock data
-          localStorage.setItem("user", JSON.stringify(mockUser));
-          localStorage.setItem("token", mockToken);
-          
-          // Update state
-          setUser(mockUser);
-          setToken(mockToken);
-          
-          console.log("Mock login successful", { 
-            hasUser: true, 
-            hasToken: true,
-            isAdmin: mockUser.isAdmin
-          });
-          
-          // Refresh products after mock login
-          fetchProducts();
-          
-          return true;
-        } else {
-          throw apiError; // If user doesn't want mock auth, propagate the original error
-        }
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err.message || "Failed to login. Please check your credentials.");
-      return false;
-    }
-  };
-
-  // Register function
-  const register = async (userData) => {
-    setError(null);
-
-    try {
-      // Try API registration first
-      try {
-        // Use relative URL for API calls to leverage proxy in development
-        const response = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(userData)
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorMessage;
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.message || `Registration failed: ${response.status}`;
-          } catch {
-            errorMessage = errorText || `Registration failed: ${response.status}`;
-          }
-          
-          throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        console.log("Registration successful:", data);
-        
-        // Auto login after registration
-        return login(userData.username, userData.password);
-      } catch (apiError) {
-        console.error("API Registration error:", apiError);
-        
-        // Check if we need to fall back to mock registration for development
-        if (process.env.NODE_ENV === 'development' && 
-            window.confirm("API registration failed. Do you want to use mock registration for development?")) {
-          console.log("Falling back to mock registration");
-          
-          // For demo purposes, simulate API call using localStorage
-          const storedUsers = localStorage.getItem("adminUsers");
-          let users = storedUsers ? JSON.parse(storedUsers) : [];
-          
-          // Check if username already exists
-          if (users.some(user => user.username === userData.username.trim())) {
-              throw new Error('Username already exists');
-          }
-          
-          // Create new user
-          const newUser = {
-              id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
-              username: userData.username.trim(),
-              email: userData.email ? userData.email.trim() : null,
-              role: 'USER'
-          };
-          
-          // Add to array
-          users.push(newUser);
-          
-          // Save to localStorage
-          localStorage.setItem("adminUsers", JSON.stringify(users));
-          
-          // Auto login after registration
-          return login(userData.username, userData.password);
-        } else {
-          throw apiError; // If user doesn't want mock auth, propagate the original error
-        }
-      }
-    } catch (err) {
-      console.error("Registration error:", err);
-      setError(err.message || "Failed to register. Please try again.");
-      return false;
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    setUser(null);
-    setToken(null);
-    console.log("Logged out, auth state cleared");
-    
-    // Refresh products after logout (will use mock data since auth is cleared)
-    fetchProducts();
+  // Context value
+  const contextValue = {
+    user,
+    token,
+    login,
+    logout,
+    isAuthenticated,
+    getAuthHeaders,
+    loading,
+    error,
+    products,
+    fetchProducts
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        login,
-        logout,
-        register,
-        isAuthenticated,
-        getAuthHeaders,
-        loading,
-        error,
-        products,
-        fetchProducts
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
