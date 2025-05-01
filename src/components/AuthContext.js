@@ -167,86 +167,87 @@ export const AuthProvider = ({ children }) => {
   }, [fetchProducts]);
 
   // Login function with improved error handling
-  const login = async (username, password) => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Updated login method for AuthContext.js
+const login = async (username, password) => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      // Determine which port to use
-      const apiPort =
-        window.location.port === "3000" ? "8080" : window.location.port;
-      const loginUrl = `http://localhost:${apiPort}/api/login`;
+    // Determine the correct API endpoint for login
+    const loginUrl = '/api/auth/login';
 
-      const response = await fetch(loginUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
-      });
+    // Prepare the request body
+    const requestBody = {
+      username: username.trim(),
+      password: password
+    };
 
-      if (!response.ok) {
-        throw new Error("Login failed. Please check your credentials.");
-      }
+    // Make the login request
+    const response = await fetch(loginUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
 
-      const data = await response.json();
-
-      // Store token and user info
-      localStorage.setItem("token", data.token);
-
-      // Create user object
-      const userData = {
-        id: data.id || 1,
-        username: username,
-        email: data.email || `${username}@example.com`,
-        role: data.role || "USER",
-      };
-
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      // Update state
-      setUser(userData);
-      setToken(data.token);
-
-      // Fetch products after successful login
-      await fetchProducts();
-
-      return true;
-    } catch (error) {
-      console.error("Login error:", error);
-
-      // Fallback to mock authentication for development
-      if (process.env.NODE_ENV === "development") {
-        console.warn("Falling back to mock authentication");
-
-        // Mock successful login
-        const mockUserData = {
-          id: 1,
-          username: username,
-          email: `${username}@example.com`,
-          role: username.toLowerCase() === "admin" ? "ADMIN" : "USER",
-        };
-
-        const mockToken = `mock-token-${Date.now()}`;
-
-        localStorage.setItem("token", mockToken);
-        localStorage.setItem("user", JSON.stringify(mockUserData));
-
-        setUser(mockUserData);
-        setToken(mockToken);
-
-        // Use mock products
-        setProducts(MOCK_PRODUCTS);
-
-        return true;
-      }
-
-      setError(error.message || "Login failed");
-      return false;
-    } finally {
-      setLoading(false);
+    // Check if the response is successful
+    if (!response.ok) {
+      // Try to parse error message from the response
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || 
+        `Login failed with status: ${response.status}`
+      );
     }
-  };
+
+    // Parse the successful response
+    const data = await response.json();
+
+    // Validate the response structure
+    if (!data.token) {
+      throw new Error('Invalid login response: No token received');
+    }
+
+    // Store the authentication token
+    localStorage.setItem('token', data.token);
+
+    // Store refresh token if provided
+    if (data.refreshToken) {
+      localStorage.setItem('refreshToken', data.refreshToken);
+    }
+
+    // Create user object from the response
+    const userData = {
+      id: data.userId || data.id,
+      username: username,
+      email: data.email,
+      role: data.role || 'USER',
+      isAdmin: data.role === 'ADMIN'
+    };
+
+    // Store user data in localStorage
+    localStorage.setItem('user', JSON.stringify(userData));
+
+    // Update state
+    setUser(userData);
+    setToken(data.token);
+
+    // Fetch products after successful login
+    await fetchProducts();
+
+    return true;
+  } catch (error) {
+    console.error('Login error:', error);
+    
+    // Set error message for display
+    setError(error.message || 'Login failed. Please try again.');
+    
+    return false;
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Logout function
   const logout = () => {
