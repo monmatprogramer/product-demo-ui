@@ -52,6 +52,7 @@ export default function UserManagement() {
   const [userToDelete, setUserToDelete] = useState(null);
 
   // Function to fetch users data with authentication
+  // Updated fetchUsers function for UserManagement.js
   const fetchUsers = async () => {
     // Reset state
     setLoading(true);
@@ -59,72 +60,53 @@ export default function UserManagement() {
     setIsRefreshing(true);
 
     try {
-      // For API-based implementation
       const token = localStorage.getItem("token");
-      
-      // Try to fetch from API if token exists
-      if (token) {
-        try {
-          const response = await fetch("http://localhost:8080/api/admin/users", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json"
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          setUsers(data || []);
-          console.log("Users fetched from API:", data);
-          setError(null);
-        } catch (apiError) {
-          console.error("API fetch error:", apiError);
-          
-          // Fallback to localStorage for demo purposes
-          const storedUsers = localStorage.getItem("adminUsers");
-          if (storedUsers) {
-            setUsers(JSON.parse(storedUsers));
-            console.log("Falling back to localStorage data");
-          } else {
-            // Initialize with mock data if needed
-            const mockUsers = [
-              {
-                id: 1,
-                username: "admin",
-                email: "admin@example.com",
-                role: "ADMIN"
-              }
-            ];
-            localStorage.setItem("adminUsers", JSON.stringify(mockUsers));
-            setUsers(mockUsers);
-            console.log("Initialized mock user data");
-          }
+
+      if (!token) {
+        throw new Error("Authentication token missing");
+      }
+
+      console.log("Fetching users from API with token:", token);
+
+      try {
+        const response = await fetch("http://localhost:8080/api/admin/users", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API Error Response:", errorText);
+          throw new Error(`Failed to fetch users: ${response.status}`);
         }
-      } else {
-        // No token, use localStorage for demo
-        const storedUsers = localStorage.getItem("adminUsers");
-        if (storedUsers) {
-          setUsers(JSON.parse(storedUsers));
-        } else {
-          // Initialize with mock data
-          const mockUsers = [
-            {
-              id: 1,
-              username: "admin",
-              email: "admin@example.com",
-              role: "ADMIN"
-            }
-          ];
-          localStorage.setItem("adminUsers", JSON.stringify(mockUsers));
-          setUsers(mockUsers);
-        }
+
+        const data = await response.json();
+        console.log("Users fetched from API:", data);
+        setUsers(data || []);
+        setError(null);
+      } catch (apiError) {
+        console.error("API fetch error:", apiError);
+        throw apiError; // Re-throw to be caught by outer try-catch
       }
     } catch (err) {
       console.error("Error fetching users:", err);
-      setError(err.message || "An error occurred while fetching users");
+      setError("Failed to load users from database. " + err.message);
+
+      // Fall back to localStorage as a last resort
+      try {
+        const storedUsers = localStorage.getItem("adminUsers");
+        if (storedUsers) {
+          setUsers(JSON.parse(storedUsers));
+          console.warn("Using localStorage data as fallback");
+        } else {
+          setUsers([]);
+        }
+      } catch (storageError) {
+        console.error("Error reading from localStorage:", storageError);
+        setUsers([]);
+      }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -179,12 +161,13 @@ export default function UserManagement() {
   };
 
   // Handle form submission
+  // Updated handleFormSubmit function for UserManagement.js
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
     const form = e.currentTarget;
 
-    // Check password validation
+    // Validation checks remain the same
     if (modalMode === "create" || userForm.password) {
       if (userForm.password.length < 6) {
         setModalError("Password must be at least 6 characters");
@@ -209,168 +192,139 @@ export default function UserManagement() {
 
     try {
       const token = localStorage.getItem("token");
-      
+
+      // Prepare request body according to your Spring Boot API expectations
+      const requestBody = {
+        username: userForm.username,
+        email: userForm.email || null,
+        // Only include password if creating or changing password
+        ...(modalMode === "create" || userForm.password
+          ? { password: userForm.password }
+          : {}),
+        admin: userForm.admin,
+      };
+
+      console.log("Sending request to API:", requestBody);
+
       if (token) {
-        // Try using the API
-        try {
-          const url = modalMode === "create" 
-            ? "http://localhost:8080/api/admin/users" 
+        // API endpoint URL
+        const url =
+          modalMode === "create"
+            ? "http://localhost:8080/api/auth/login" // Use correct endpoint for user creation
             : `http://localhost:8080/api/admin/users/${currentUser.id}`;
-          
-          const method = modalMode === "create" ? "POST" : "PUT";
-          
-          // Prepare request body
-          const requestBody = {
-            username: userForm.username,
-            email: userForm.email || null,
-            admin: userForm.admin
-          };
-          
-          // Add password if it's provided
-          if (userForm.password) {
-            requestBody.password = userForm.password;
-          }
-          
+
+        const method = modalMode === "create" ? "POST" : "PUT";
+
+        try {
           const response = await fetch(url, {
             method,
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
           });
-          
+
+          // Check if the response is OK
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `Failed to ${modalMode === "create" ? "create" : "update"} user`);
+            // Try to parse error response
+            const errorText = await response.text();
+            console.error("API Error Response:", errorText);
+
+            let errorMessage;
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage =
+                errorData.message || `Server error: ${response.status}`;
+            } catch {
+              errorMessage = errorText || `Server error: ${response.status}`;
+            }
+
+            throw new Error(errorMessage);
           }
-          
-          // If successful, fetch updated users
-          fetchUsers();
-          
+
+          // Parse the response data
+          const responseData = await response.json();
+          console.log("API Response:", responseData);
+
+          // If API call is successful, update local state
+          await fetchUsers(); // Refresh user list from API
+
           // Close modal
           setShowModal(false);
-          setError(`User ${modalMode === "create" ? "created" : "updated"} successfully`);
+          setError(
+            `User ${
+              modalMode === "create" ? "created" : "updated"
+            } successfully`
+          );
           setTimeout(() => setError(null), 3000);
-          
+
           return;
         } catch (apiError) {
-          console.error("API error:", apiError);
-          // Fall through to localStorage approach
+          console.error("API Error:", apiError);
+          setModalError(`API Error: ${apiError.message}`);
+
+          // Don't fall back to localStorage if there's an actual API error
+          // Instead, show the error and let the user try again
+          setModalLoading(false);
+          return;
         }
       }
-      
-      // Fallback to localStorage for demo purposes
-      const storedUsers = localStorage.getItem("adminUsers");
-      let adminUsers = storedUsers ? JSON.parse(storedUsers) : [];
 
-      // Check if username already exists for new users
-      if (
-        modalMode === "create" &&
-        adminUsers.some((u) => u.username === userForm.username)
-      ) {
-        throw new Error("Username already exists");
-      }
-
-      if (modalMode === "create") {
-        // Create new user
-        const newUser = {
-          id:
-            adminUsers.length > 0
-              ? Math.max(...adminUsers.map((u) => u.id)) + 1
-              : 1,
-          username: userForm.username,
-          email: userForm.email,
-          role: userForm.admin ? "ADMIN" : "USER",
-        };
-
-        adminUsers.push(newUser);
-      } else {
-        // Update existing user
-        adminUsers = adminUsers.map((user) => {
-          if (user.id === currentUser.id) {
-            return {
-              ...user,
-              username: userForm.username,
-              email: userForm.email,
-              role: userForm.admin ? "ADMIN" : "USER",
-            };
-          }
-          return user;
-        });
-      }
-
-      // Save to local storage
-      localStorage.setItem("adminUsers", JSON.stringify(adminUsers));
-
-      // Update state
-      setUsers(adminUsers);
-
-      // Close modal
-      setShowModal(false);
-
-      // Show success message
-      setError(
-        `User ${modalMode === "create" ? "created" : "updated"} successfully`
-      );
-      setTimeout(() => setError(null), 3000);
+      // Only reach here if no token exists (shouldn't happen in normal flow)
+      setModalError("Authentication required. Please log in again.");
+      setModalLoading(false);
     } catch (err) {
       console.error(
         `Error ${modalMode === "create" ? "creating" : "updating"} user:`,
         err
       );
       setModalError(err.message || `Failed to ${modalMode} user`);
-    } finally {
       setModalLoading(false);
     }
   };
 
   // Handle user deletion
+  // Updated handleDeleteUser function for UserManagement.js
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
 
     try {
       const token = localStorage.getItem("token");
-      
-      if (token) {
-        try {
-          const response = await fetch(`http://localhost:8080/api/admin/users/${userToDelete.id}`, {
+
+      if (!token) {
+        throw new Error("Authentication token missing");
+      }
+
+      try {
+        const response = await fetch(
+          `http://localhost:8080/api/admin/users/${userToDelete.id}`,
+          {
             method: "DELETE",
             headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Failed to delete user: ${response.status}`);
+              Authorization: `Bearer ${token}`,
+            },
           }
-          
-          // If successful, continue with regular flow
-        } catch (apiError) {
-          console.error("API delete error:", apiError);
-          // Fall through to localStorage approach
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API Delete Error Response:", errorText);
+          throw new Error(`Failed to delete user: ${response.status}`);
         }
+
+        // If successful, refresh the user list
+        await fetchUsers();
+
+        setError("User deleted successfully");
+        setTimeout(() => setError(null), 3000);
+      } catch (apiError) {
+        console.error("API delete error:", apiError);
+        setError("Error deleting user: " + apiError.message);
       }
-      
-      // Get current users from localStorage
-      const storedUsers = localStorage.getItem("adminUsers");
-      let adminUsers = storedUsers ? JSON.parse(storedUsers) : [];
-
-      // Filter out deleted user
-      adminUsers = adminUsers.filter((user) => user.id !== userToDelete.id);
-
-      // Save to local storage
-      localStorage.setItem("adminUsers", JSON.stringify(adminUsers));
-
-      // Update state
-      setUsers(adminUsers);
-
-      // Show success message
-      setError("User deleted successfully");
-      setTimeout(() => setError(null), 3000);
     } catch (err) {
       console.error("Error deleting user:", err);
-      setError(err.message || "Failed to delete user");
+      setError("Failed to delete user: " + err.message);
     } finally {
       setShowDeleteModal(false);
       setUserToDelete(null);

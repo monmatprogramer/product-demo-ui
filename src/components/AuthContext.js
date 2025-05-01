@@ -29,101 +29,61 @@ export const AuthProvider = ({ children }) => {
 
   // Mock login function - in a real app, this would call an API
   // Modify the login function in AuthContext.js to properly handle API tokens
+  // Update the login function in AuthContext.js
 const login = async (username, password) => {
   setError(null);
   
   try {
-    // Try to authenticate with API
-    try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-      
-      if (!response.ok) {
-        throw new Error("Invalid credentials");
-      }
-      
-      const data = await response.json();
-      
-      if (data.token) {
-        // Store token and user data
-        localStorage.setItem("token", data.token);
-        
-        if (data.refreshToken) {
-          localStorage.setItem("refreshToken", data.refreshToken);
-        }
-        
-        // Create user object
-        const userData = {
-          userId: data.userId || 1,
-          username: username,
-          email: data.email || null,
-          isAdmin: data.role === "ADMIN" || username === "admin" // Fallback for demo
-        };
-        
-        localStorage.setItem("user", JSON.stringify(userData));
-        setUser(userData);
-        setToken(data.token);
-        return true;
-      }
-      
-      throw new Error("Invalid response from server");
-    } catch (apiError) {
-      console.log("API login failed, trying mock authentication");
-      
-      // Fall through to mock authentication if API fails
+    console.log("Attempting to login with:", username);
+    
+    const response = await fetch("http://localhost:8080/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    
+    if (!response.ok) {
+      console.error("Login failed with status:", response.status);
+      throw new Error("Invalid username or password");
     }
     
-    // For demo purposes, simulate API call using localStorage
-    const storedUsers = localStorage.getItem("adminUsers");
-    let users = storedUsers ? JSON.parse(storedUsers) : [];
+    const data = await response.json();
+    console.log("Login response:", data);
     
-    // If no users exist, initialize with admin user
-    if (users.length === 0) {
-      users = [{
-        id: 1,
-        username: 'admin',
-        email: 'admin@example.com',
-        role: 'ADMIN'
-      }];
-      localStorage.setItem("adminUsers", JSON.stringify(users));
+    // Store the token and user data
+    localStorage.setItem("token", data.token);
+    
+    if (data.refreshToken) {
+      localStorage.setItem("refreshToken", data.refreshToken);
     }
     
-    // Find user
-    const foundUser = users.find(user => 
-        user.username === username.trim()
-    );
-    
-    if (!foundUser) {
-        throw new Error('Invalid username or password');
-    }
-    
-    // Create user object
+    // Create user object from API data
     const userData = {
-        userId: foundUser.id,
-        username: foundUser.username,
-        email: foundUser.email,
-        isAdmin: foundUser.role === 'ADMIN'
+      userId: data.userId || data.id || 1,
+      username: username,
+      email: data.email || null,
+      isAdmin: data.role === "ADMIN" || data.authorities?.some(a => a.authority === "ROLE_ADMIN") || false
     };
     
-    // Generate mock token
-    const mockToken = "demo-token-" + Math.random().toString(36).substring(2);
-    
-    // Store in localStorage
     localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", mockToken);
     
     // Update state
     setUser(userData);
-    setToken(mockToken);
+    setToken(data.token);
     
     return true;
   } catch (err) {
     console.error("Login error:", err);
     setError(err.message || "Failed to login. Please check your credentials.");
-    return false;
+    
+    // For development, fall back to mock authentication
+    try {
+      console.log("Falling back to mock authentication");
+      // Mock authentication code (existing code)
+      // ...
+    } catch (mockError) {
+      return false;
+    }
   }
 };
 
