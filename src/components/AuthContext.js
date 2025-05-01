@@ -36,7 +36,8 @@ export const AuthProvider = ({ children }) => {
       
       // Try API login first
       try {
-        const response = await fetch("http://localhost:8080/api/auth/login", {
+        // Use relative URL for API calls to leverage proxy in development
+        const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password })
@@ -130,7 +131,8 @@ export const AuthProvider = ({ children }) => {
     try {
       // Try API registration first
       try {
-        const response = await fetch("http://localhost:8080/api/auth/register", {
+        // Use relative URL for API calls to leverage proxy in development
+        const response = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(userData)
