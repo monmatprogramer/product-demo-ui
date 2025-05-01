@@ -10,33 +10,130 @@ import {
     Form,
     Tabs,
     Tab,
+    Alert
 } from 'react-bootstrap';
 import { FaStar, FaStarHalf, FaRegStar } from 'react-icons/fa';
 import { getImageSrc, handleImgError } from '../utils/imageUtils';
 import './ProductDetail.css';
+
+// Mock product data for fallback
+const MOCK_PRODUCTS = [
+  {
+    id: 1,
+    name: "Gaming Laptop",
+    description: "High-performance gaming laptop with RGB keyboard and latest GPU for smooth gaming experience. Features a high refresh rate display and enhanced cooling system for extended gaming sessions.",
+    price: 1299.99,
+    imageUrl: ""
+  },
+  {
+    id: 2,
+    name: "Mechanical Keyboard",
+    description: "Tactile mechanical keyboard with customizable backlighting and programmable macros. Durable construction with premium switches for faster response times.",
+    price: 129.99,
+    imageUrl: ""
+  },
+  {
+    id: 3,
+    name: "Wireless Mouse",
+    description: "Ergonomic wireless mouse with long battery life and precision tracking. Features adjustable DPI settings and customizable buttons for productivity and gaming.",
+    price: 59.99,
+    imageUrl: ""
+  },
+  {
+    id: 4,
+    name: "LED Monitor",
+    description: "27-inch LED monitor with high refresh rate and vibrant color accuracy. Ultra-thin bezels for immersive viewing experience with multiple connectivity options.",
+    price: 249.99,
+    imageUrl: ""
+  },
+  {
+    id: 5,
+    name: "USB Hub",
+    description: "Multi-port USB hub with fast charging capabilities and data transfer. Sleek design with individual power switches for each port.",
+    price: 39.99,
+    imageUrl: ""
+  },
+  {
+    id: 6,
+    name: "External SSD",
+    description: "Fast external SSD with USB-C connectivity and durable aluminum casing. High-speed transfers with substantial storage capacity for all your digital needs.",
+    price: 89.99,
+    imageUrl: ""
+  }
+];
 
 const ProductDetail = () => {
     const { id } = useParams();
     const [product, setProduct] = useState(null);
     const [qty, setQty] = useState(1);
     const [activeTab, setActiveTab] = useState('desc');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
+        // Try to fetch product details from API
         fetch(`/api/products/${id}`)
             .then(r => {
-                if (!r.ok) throw new Error('Not found');
+                if (!r.ok) {
+                    throw new Error(`Failed to fetch product: ${r.status}`);
+                }
                 return r.json();
             })
-            .then(setProduct)
-            .catch(() => navigate('/', { replace: true }));
-    }, [id, navigate]);
+            .then(data => {
+                console.log("Fetched product:", data);
+                setProduct(data);
+                setLoading(false);
+                setError(null);
+            })
+            .catch(err => {
+                console.error("Error fetching product:", err);
+                
+                // Try to find a matching mock product
+                const mockProduct = MOCK_PRODUCTS.find(p => p.id.toString() === id);
+                
+                if (mockProduct) {
+                    console.log("Using mock product:", mockProduct);
+                    setProduct(mockProduct);
+                    setError("Using demo product data due to API connection issues.");
+                } else {
+                    setError("Product not found. The product may have been removed or you may have followed an invalid link.");
+                }
+                
+                setLoading(false);
+            });
+    }, [id]);
 
-    if (!product) {
+    if (loading) {
         return (
             <div className="text-center py-5">
                 <Spinner animation="border" />
             </div>
+        );
+    }
+
+    if (!product) {
+        return (
+            <Container className="detail-container">
+                <Button
+                    variant="link"
+                    className="mb-3 text-decoration-none"
+                    onClick={() => navigate(-1)}
+                >
+                    ← Back to products
+                </Button>
+                
+                <Alert variant="danger">
+                    <Alert.Heading>Product Not Found</Alert.Heading>
+                    <p>
+                        The product you're looking for doesn't exist or couldn't be loaded.
+                        Please try again or browse our other products.
+                    </p>
+                    <Button variant="primary" onClick={() => navigate('/')}>
+                        Browse Products
+                    </Button>
+                </Alert>
+            </Container>
         );
     }
 
@@ -57,6 +154,12 @@ const ProductDetail = () => {
             >
                 ← Back to products
             </Button>
+
+            {error && (
+                <Alert variant="warning" className="mb-3">
+                    {error}
+                </Alert>
+            )}
 
             <Card className="detail-card shadow">
                 <Row className="g-0">

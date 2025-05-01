@@ -32,7 +32,52 @@ import UserManagement from "./components/admin/UserManagement";
 import Reports from "./components/admin/Reports";
 import Analytics from "./components/admin/Analytics";
 import MyComponent from './components/MyComponent';
-// import {MyComponent} from './components/MyComponent';
+
+// Mock product data to use when API fails
+const MOCK_PRODUCTS = [
+  {
+    id: 1,
+    name: "Gaming Laptop",
+    description: "High-performance gaming laptop with RGB keyboard",
+    price: 1299.99,
+    imageUrl: ""
+  },
+  {
+    id: 2,
+    name: "Mechanical Keyboard",
+    description: "Tactile mechanical keyboard with customizable backlighting",
+    price: 129.99,
+    imageUrl: ""
+  },
+  {
+    id: 3,
+    name: "Wireless Mouse",
+    description: "Ergonomic wireless mouse with long battery life",
+    price: 59.99,
+    imageUrl: ""
+  },
+  {
+    id: 4,
+    name: "LED Monitor",
+    description: "27-inch LED monitor with high refresh rate",
+    price: 249.99,
+    imageUrl: ""
+  },
+  {
+    id: 5,
+    name: "USB Hub",
+    description: "Multi-port USB hub with fast charging",
+    price: 39.99,
+    imageUrl: ""
+  },
+  {
+    id: 6,
+    name: "External SSD",
+    description: "Fast external SSD with USB-C connectivity",
+    price: 89.99,
+    imageUrl: ""
+  }
+];
 
 function App() {
   const [products, setProducts] = useState([]);
@@ -45,39 +90,82 @@ function App() {
   const cartCount = getCart().reduce((sum, p) => sum + p.qty, 0);
 
   useEffect(() => {
+    // Fetch products from API or use mock data
     fetch("/api/products")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          throw new Error(`API error: ${r.status}`);
+        }
+        return r.json();
+      })
       .then((data) => {
-        setProducts(data);
+        console.log("Fetched products:", data);
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+        } else {
+          // If API returns empty or invalid data, use mock data
+          console.log("Using mock product data");
+          setProducts(MOCK_PRODUCTS);
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        console.error("Error fetching products:", error);
+        // Use mock data on error
+        console.log("Using mock product data due to error");
+        setProducts(MOCK_PRODUCTS);
+        setLoading(false);
+      });
   }, []);
 
   const categories = useMemo(() => {
+    // Safely create categories from products
+    if (!Array.isArray(products) || products.length === 0) {
+      return ["All"];
+    }
+    
     const setCats = new Set(["All"]);
     products.forEach((p) => {
-      const last = p.name.split(" ").pop();
-      setCats.add(last.endsWith("s") ? last : last + "s");
+      if (p && p.name) {
+        const nameParts = p.name.split(" ");
+        if (nameParts.length > 0) {
+          const last = nameParts[nameParts.length - 1];
+          setCats.add(last.endsWith("s") ? last : last + "s");
+        }
+      }
     });
     return Array.from(setCats);
   }, [products]);
 
   const filtered = useMemo(() => {
+    // Guard against products not being an array
+    if (!Array.isArray(products)) {
+      return [];
+    }
+    
     let arr =
       category === "All"
         ? products
         : products.filter((p) => {
-            const last = p.name.split(" ").pop();
-            return (last.endsWith("s") ? last : last + "s") === category;
+            if (p && p.name) {
+              const nameParts = p.name.split(" ");
+              if (nameParts.length > 0) {
+                const last = nameParts[nameParts.length - 1];
+                return (last.endsWith("s") ? last : last + "s") === category;
+              }
+            }
+            return false;
           });
+    
     if (query) {
       arr = arr.filter((p) =>
-        p.name.toLowerCase().includes(query.toLowerCase())
+        p && p.name && p.name.toLowerCase().includes(query.toLowerCase())
       );
     }
+    
     if (sortOrder === "asc") arr.sort((a, b) => a.price - b.price);
     if (sortOrder === "desc") arr.sort((a, b) => b.price - a.price);
+    
     return arr;
   }, [products, category, query, sortOrder]);
 
