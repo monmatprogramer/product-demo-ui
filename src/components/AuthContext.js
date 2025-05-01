@@ -9,6 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [token, setToken] = useState(null);
   const [products, setProducts] = useState([]);
+  const [authRequired, setAuthRequired] = useState(false);
 
   // Utility function to check authentication status
   const isAuthenticated = () => {
@@ -26,20 +27,42 @@ export const AuthProvider = ({ children }) => {
       : { "Content-Type": "application/json" };
   };
 
-  // Fetch products - IMPORTANT: This should be a public endpoint with no auth required
+  // Fetch products - Modified to handle authentication requirement
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const url = "/api/products"; // Public endpoint
+      setAuthRequired(false);
+      const url = "/api/products";
 
-      console.log("Fetching public products from:", url);
+      console.log("Fetching products from:", url);
 
-      // Make a simple fetch without auth headers
-      const response = await fetch(url, {
+      // First try without auth headers
+      let response = await fetch(url, {
         method: "GET",
-        headers: { "Content-Type": "application/json" } // No auth header
+        headers: { "Content-Type": "application/json" }
       });
+
+      // If we get 401, try again with auth headers if token exists
+      if (response.status === 401) {
+        console.log("Products endpoint requires authentication");
+        setAuthRequired(true);
+        
+        const token = localStorage.getItem("token");
+        if (token) {
+          console.log("Token found, retrying with authentication");
+          response = await fetch(url, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            }
+          });
+        } else {
+          console.log("No authentication token available");
+          throw new Error("Authentication required to view products");
+        }
+      }
 
       console.log("Products API response status:", response.status);
 
@@ -54,7 +77,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await response.json();
-      console.log("Public products fetched:", data);
+      console.log("Products fetched:", data);
 
       if (Array.isArray(data)) {
         setProducts(data);
@@ -124,8 +147,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setToken(data.token || '');
       
-      // Fetch products after login - though this isn't strictly necessary
-      // since we already fetch them for all users
+      // Fetch products after login
       fetchProducts();
       
       return true;
@@ -149,6 +171,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     setError(null);
+    
+    // Attempt to fetch products after logout (they may be public)
+    fetchProducts();
   };
 
   // Initialize on mount
@@ -187,6 +212,7 @@ export const AuthProvider = ({ children }) => {
     error,
     products,
     fetchProducts,
+    authRequired,
   };
 
   return (

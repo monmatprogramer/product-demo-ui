@@ -5,23 +5,32 @@ import ProductCard from './ProductCard';
 import { AuthContext } from './AuthContext';
 
 const ProductGrid = ({ products, onViewDetails }) => {
-  const { authRequired } = useContext(AuthContext);
+  const { authRequired, isAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // If authentication is required and there are no products, show login prompt
-  if (authRequired && products.length === 0) {
+  // If authentication is required and user is not authenticated, show login prompt
+  if (authRequired && !isAuthenticated()) {
     return (
       <Alert variant="info" className="text-center py-4">
         <h4>Authentication Required</h4>
         <p>Please log in to view available products.</p>
         <Button 
           variant="primary" 
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/login', { state: { from: '/' } })}
           className="mt-2"
         >
           Log In
         </Button>
       </Alert>
+    );
+  }
+
+  // If there are no products to display (but auth is not the issue)
+  if (products.length === 0) {
+    return (
+      <Col xs={12}>
+        <p className="text-center text-muted py-5">No products found.</p>
+      </Col>
     );
   }
 
@@ -32,11 +41,6 @@ const ProductGrid = ({ products, onViewDetails }) => {
           <ProductCard product={p} onViewDetails={() => onViewDetails(p)} />
         </Col>
       ))}
-      {products.length === 0 && (
-        <Col xs={12}>
-          <p className="text-center text-muted py-5">No products found.</p>
-        </Col>
-      )}
     </Row>
   );
 };
