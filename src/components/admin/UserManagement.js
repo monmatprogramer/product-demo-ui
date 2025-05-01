@@ -1,5 +1,5 @@
 // src/components/admin/UserManagement.js
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react"; // Added useCallback import
 import { AuthContext } from "../AuthContext";
 import {
   Table,
@@ -53,8 +53,8 @@ export default function UserManagement() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [usingLocalStorage, setUsingLocalStorage] = useState(false);
 
-  // Function to fetch users data with authentication
-  function fetchUsers() {
+  // Define fetchUsers with useCallback to prevent infinite loop in useEffect
+  const fetchUsers = useCallback(async () => {
     // Reset state
     setLoading(true);
     setError(null);
@@ -68,38 +68,35 @@ export default function UserManagement() {
       const headers = getAuthHeaders();
       console.log("Using auth headers:", headers);
       
-      fetch(apiUrl, {
+      const response = await fetch(apiUrl, {
         method: "GET",
         headers: headers
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch users: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log("Users fetched successfully:", data);
-        setUsers(data || []);
-        setError(null);
-      })
-      .catch(err => {
-        console.error("API fetch error:", err);
-        setError(`Error fetching users: ${err.message}. Please try again later.`);
-        setUsers([]);
-      })
-      .finally(() => {
-        setLoading(false);
-        setIsRefreshing(false);
       });
+  
+      if (!response.ok) {
+        // Handle unauthorized specifically
+        if (response.status === 401) {
+          throw new Error("Authentication required. Please log in.");
+        }
+        throw new Error(`Failed to fetch users: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      console.log("Users fetched successfully:", data);
+      setUsers(data || []);
+      setError(null);
+      setUsingLocalStorage(false);
     } catch (err) {
-      console.error("Exception during fetch setup:", err);
-      setError(`An unexpected error occurred: ${err.message}`);
+      console.error("API fetch error:", err);
+      setError(`Error fetching users: ${err.message}. Please try again later.`);
+      setUsers([]);
+    } finally {
       setLoading(false);
       setIsRefreshing(false);
-      setUsers([]);
     }
-  }
+  }, [getAuthHeaders]); // Add getAuthHeaders as dependency
+
+  // The rest of the file remains unchanged...
 
   // Helper function to create default users if none exist
   const createAndUseDefaultUsers = () => {
@@ -375,7 +372,6 @@ export default function UserManagement() {
     }
   };
 
-  // Fetch data on component mount
   useEffect(() => {
     // Only fetch if user is authenticated
     if (isAuthenticated()) {
@@ -384,7 +380,7 @@ export default function UserManagement() {
       setError("You must be logged in to view this content");
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchUsers]);
 
   // Filter users based on search term
   const filteredUsers = users.filter(

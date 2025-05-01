@@ -1,3 +1,4 @@
+// src/components/AuthContext.js - Updated version
 import React, { createContext, useState, useEffect, useCallback } from "react";
 
 export const AuthContext = createContext();
@@ -25,24 +26,25 @@ export const AuthProvider = ({ children }) => {
       : { "Content-Type": "application/json" };
   };
 
-  // Fetch products with improved error handling - UPDATED to remove mock data fallback
+  // Fetch products with improved error handling
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get the token from localStorage
-      const token = localStorage.getItem("token");
-
-      // Prepare headers
-      const headers = {
-        "Content-Type": "application/json",
-        // Always include the Authorization header if token exists
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-
       // Use relative path with proxy
-      const response = await fetch("/api/products", {
+      const url = '/api/products';
+      let headers = { 'Content-Type': 'application/json' };
+      
+      // Get the token and add it if available
+      const token = localStorage.getItem("token");
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      console.log("Fetching products with headers:", headers);
+      
+      const response = await fetch(url, {
         method: "GET",
         headers: headers,
       });
@@ -50,12 +52,12 @@ export const AuthProvider = ({ children }) => {
       // Log response info for debugging
       console.log("Products API response status:", response.status);
       
-      // Handle unauthorized access
+      // Handle unauthorized access for a better user experience
       if (response.status === 401) {
-        // Clear any invalid token
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        throw new Error("Authentication required. Please log in.");
+        // This is normal - products may require auth
+        console.log("Authentication required for products. This is expected if not logged in.");
+        setProducts([]);
+        return;
       }
 
       // Check if the response is successful
@@ -74,9 +76,9 @@ export const AuthProvider = ({ children }) => {
         setProducts(data);
         setError(null);
       } else {
-        // If no valid products, set empty array and show error
+        // If no valid products, set empty array
         setProducts([]);
-        setError("No products returned from API. Please check your connection or contact support.");
+        setError("No products returned from API. Please check your connection.");
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -87,7 +89,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Login function with improved error handling
+  // Login function with direct fetch instead of using the login function
   const login = async (username, password) => {
     try {
       setLoading(true);
@@ -115,7 +117,6 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify(requestBody)
       });
 
-      // Log response for debugging
       console.log("Login response status:", response.status);
       
       // Check if the response is successful
@@ -138,7 +139,7 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       console.log("Login successful, received data:", data);
 
-      // Validate the response structure
+      // Check for token in response
       if (!data.token) {
         throw new Error('Invalid login response: No token received');
       }
@@ -190,11 +191,13 @@ export const AuthProvider = ({ children }) => {
     // Clear local storage
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("refreshToken");
 
     // Reset state
     setUser(null);
     setToken(null);
     setProducts([]);
+    setError(null);
   };
 
   // Initialize on mount
@@ -215,6 +218,9 @@ export const AuthProvider = ({ children }) => {
         console.error("Error parsing stored user:", error);
         logout();
       }
+    } else {
+      // Try to fetch public products even if not authenticated
+      fetchProducts();
     }
 
     // Always set loading to false after initial check

@@ -1,4 +1,5 @@
-// src/components/LoginPage.js
+// src/components/LoginPage.js - Updated version
+
 import React, { useState, useContext, useEffect } from 'react';
 import {
     Container,
@@ -6,14 +7,12 @@ import {
     Form,
     Button,
     InputGroup,
-    Modal,
     Alert,
     Spinner
 } from 'react-bootstrap';
 import { FaEye, FaEyeSlash, FaSignInAlt } from 'react-icons/fa';
 import { AuthContext } from './AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AuthService } from '../services/AuthService';
 import './AuthForms.css';
 
 const LoginPage = () => {
@@ -30,13 +29,6 @@ const LoginPage = () => {
     const [validated, setValidated] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-
-    // Forgot-password modal
-    const [showModal, setShowModal] = useState(false);
-    const [resetEmail, setResetEmail] = useState('');
-    const [resetSent, setResetSent] = useState(false);
-    const [resetError, setResetError] = useState('');
-    const [resetLoading, setResetLoading] = useState(false);
 
     // Redirect if already logged in
     useEffect(() => {
@@ -62,45 +54,71 @@ const LoginPage = () => {
             // First ensure we're logged out to clear any previous state
             logout();
             
-            // Use the login function from AuthContext with API integration
-            const success = await login(username.trim(), password);
+            console.log(`Attempting login with: ${username}`);
             
-            if (!success) {
-                throw new Error(contextError || 'Login failed. Please check your credentials.');
+            // Direct API call to debug the issue
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    username: username.trim(), 
+                    password 
+                })
+            });
+            
+            console.log(`Login response status: ${response.status}`);
+            
+            if (!response.ok) {
+                let errorMessage;
+                try {
+                    // Try to get error message from response
+                    const errorData = await response.json();
+                    errorMessage = errorData.message || errorData.error || `Login failed with status: ${response.status}`;
+                } catch (e) {
+                    // If we can't parse JSON, use text
+                    const errorText = await response.text();
+                    errorMessage = errorText || `Login failed with status: ${response.status}`;
+                }
+                
+                throw new Error(errorMessage);
             }
             
-            // Reset form fields on success
-            setUsername('');
-            setPassword('');
-            setValidated(false);
+            // Parse successful response
+            const data = await response.json();
+            console.log("Login successful, received data:", data);
             
-            // Navigate to the original destination or home
-            navigate(from, { replace: true });
+            // Store authentication data
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                
+                // Create user object
+                const userData = {
+                    username: username,
+                    isAdmin: data.role === 'ADMIN' || false,
+                    role: data.role || 'USER'
+                };
+                
+                localStorage.setItem('user', JSON.stringify(userData));
+                
+                // Navigate to original destination
+                navigate(from, { replace: true });
+                
+                // Force page reload to ensure all components recognize the auth state
+                window.location.reload();
+                
+                return;
+            }
+            
+            // If we got here without a token, something's wrong
+            throw new Error('Invalid response from server - no token received');
+            
         } catch (err) {
             console.error('Login error:', err);
-            setError(err.message || 'Invalid username or password');
+            setError(err.message || 'Login failed. Please check your credentials.');
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const handleReset = async (e) => {
-        e.preventDefault();
-        setResetError('');
-        setResetLoading(true);
-        
-        try {
-            // Use our AuthService to handle password reset
-            await AuthService.forgotPassword(resetEmail);
-            
-            // Always show success for security (don't reveal if email exists)
-            setResetSent(true);
-        } catch (err) {
-            // Still show success even on error for security
-            setResetSent(true);
-            console.error('Error requesting password reset:', err);
-        } finally {
-            setResetLoading(false);
         }
     };
 
@@ -113,6 +131,12 @@ const LoginPage = () => {
                     {error && (
                         <Alert variant="danger" className="mb-3">
                             <strong>Login Error:</strong> {error}
+                        </Alert>
+                    )}
+                    
+                    {contextError && error !== contextError && (
+                        <Alert variant="danger" className="mb-3">
+                            <strong>Error:</strong> {contextError}
                         </Alert>
                     )}
                     
@@ -175,13 +199,6 @@ const LoginPage = () => {
                                     </>
                                 )}
                             </Button>
-                            <Button
-                                variant="link"
-                                onClick={() => { setShowModal(true); setResetSent(false); setResetError(''); }}
-                                disabled={isLoading}
-                            >
-                                Forgot password?
-                            </Button>
                         </div>
 
                         <div className="text-center">
@@ -192,55 +209,6 @@ const LoginPage = () => {
                     </Form>
                 </Card.Body>
             </Card>
-
-            {/* Forgot Password Modal */}
-            <Modal centered show={showModal} onHide={() => setShowModal(false)}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Reset Password</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {resetSent ? (
-                        <Alert variant="success">
-                            If that email exists, a reset link has been sent.
-                        </Alert>
-                    ) : (
-                        <>
-                            {resetError && (
-                                <Alert variant="danger">
-                                    {resetError}
-                                </Alert>
-                            )}
-                            <Form onSubmit={handleReset}>
-                                <Form.Group controlId="resetEmail" className="mb-3">
-                                    <Form.Label>Email Address</Form.Label>
-                                    <Form.Control
-                                        required
-                                        type="email"
-                                        placeholder="you@example.com"
-                                        value={resetEmail}
-                                        onChange={e => setResetEmail(e.target.value)}
-                                        disabled={resetLoading}
-                                    />
-                                </Form.Group>
-                                <Button 
-                                    type="submit" 
-                                    variant="primary"
-                                    disabled={resetLoading}
-                                >
-                                    {resetLoading ? (
-                                        <>
-                                            <Spinner as="span" animation="border" size="sm" className="me-2" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        'Send Reset Link'
-                                    )}
-                                </Button>
-                            </Form>
-                        </>
-                    )}
-                </Modal.Body>
-            </Modal>
         </Container>
     );
 };
