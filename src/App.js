@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useContext } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Container, Row, Col } from "react-bootstrap";
 
@@ -22,7 +22,6 @@ import Footer from "./components/Footer";
 import { getCart } from "./utils/cartUtils";
 import { AuthContext, AuthProvider } from "./components/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
-import { safeJsonFetch } from "./utils/apiUtils";
 
 import "./App.css";
 import AdminPage from "./components/AdminPage";
@@ -34,101 +33,14 @@ import Reports from "./components/admin/Reports";
 import Analytics from "./components/admin/Analytics";
 import MyComponent from './components/MyComponent';
 
-// Mock product data to use when API fails
-const MOCK_PRODUCTS = [
-  {
-    id: 1,
-    name: "Gaming Laptop",
-    description: "High-performance gaming laptop with RGB keyboard",
-    price: 1299.99,
-    imageUrl: ""
-  },
-  {
-    id: 2,
-    name: "Mechanical Keyboard",
-    description: "Tactile mechanical keyboard with customizable backlighting",
-    price: 129.99,
-    imageUrl: ""
-  },
-  {
-    id: 3,
-    name: "Wireless Mouse",
-    description: "Ergonomic wireless mouse with long battery life",
-    price: 59.99,
-    imageUrl: ""
-  },
-  {
-    id: 4,
-    name: "LED Monitor",
-    description: "27-inch LED monitor with high refresh rate",
-    price: 249.99,
-    imageUrl: ""
-  },
-  {
-    id: 5,
-    name: "USB Hub",
-    description: "Multi-port USB hub with fast charging",
-    price: 39.99,
-    imageUrl: ""
-  },
-  {
-    id: 6,
-    name: "External SSD",
-    description: "Fast external SSD with USB-C connectivity",
-    price: 89.99,
-    imageUrl: ""
-  }
-];
-
-function App() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+function AppContent() {
+  const { products, loading } = useContext(AuthContext);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [sortOrder, setSortOrder] = useState("");
   const navigate = useNavigate();
 
   const cartCount = getCart().reduce((sum, p) => sum + p.qty, 0);
-
-  useEffect(() => {
-    // Fetch products from API or use mock data
-    // Update the fetchProducts function in App.js
-const fetchProducts = async () => {
-  try {
-    // Check for authentication token
-    const token = localStorage.getItem("token");
-    const headers = token ? { "Authorization": `Bearer ${token}` } : {};
-    
-    console.log("Fetching products");
-    const response = await fetch("/api/products", {
-      headers: headers
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log("Fetched products:", data);
-    
-    if (Array.isArray(data) && data.length > 0) {
-      setProducts(data);
-    } else {
-      // If API returns empty or invalid data, use mock data
-      console.log("Using mock product data due to empty response");
-      setProducts(MOCK_PRODUCTS);
-    }
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    // Use mock data on error
-    console.log("Using mock product data due to error");
-    setProducts(MOCK_PRODUCTS);
-  } finally {
-    setLoading(false);
-  }
-};
-    fetchProducts();
-  }, []);
 
   const categories = useMemo(() => {
     // Safely create categories from products
@@ -184,122 +96,128 @@ const fetchProducts = async () => {
   if (loading) return <Loader />;
 
   return (
+    <div className="app-container d-flex flex-column min-vh-100">
+      <NavbarBar
+        searchValue={query}
+        onSearch={setQuery}
+        cartCount={cartCount}
+      />
+
+      <main className="flex-grow-1">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <>
+                <Hero />
+                <Container fluid>
+                  <Row>
+                    <Col md={2} className="mb-4">
+                      <Sidebar
+                        categories={categories}
+                        selected={category}
+                        onSelect={(c) => {
+                          setCategory(c);
+                          setSortOrder("");
+                        }}
+                      />
+                    </Col>
+                    <Col md={10}>
+                      <SortControl
+                        sortOrder={sortOrder}
+                        onSortChange={setSortOrder}
+                      />
+                      <ProductGrid
+                        products={filtered}
+                        onViewDetails={(p) => {
+                          localStorage.setItem("lastViewed", p.id);
+                          navigate(`/product/${p.id}`);
+                        }}
+                      />
+                    </Col>
+                  </Row>
+                </Container>
+              </>
+            }
+          />
+
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
+            }
+          ></Route>
+          {/* Public auth routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/admin/*"
+            element={
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="products" element={<ProductsAdmin />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="analytics" element={<Analytics />} />
+          </Route>
+
+          {/* User profile routes */}
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <ProfilePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <PrivateRoute>
+                <OrdersPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Protected checkout */}
+          <Route
+            path="/checkout"
+            element={
+              <PrivateRoute>
+                <CheckoutPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <UserManagement />
+              </AdminRoute>
+            }
+          />
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+      
+      <Footer />
+    </div>
+  );
+}
+
+function App() {
+  return (
     <AuthProvider>
-      <div className="app-container d-flex flex-column min-vh-100">
-        <NavbarBar
-          searchValue={query}
-          onSearch={setQuery}
-          cartCount={cartCount}
-        />
-
-        <main className="flex-grow-1">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <>
-                  <Hero />
-                  <Container fluid>
-                    <Row>
-                      <Col md={2} className="mb-4">
-                        <Sidebar
-                          categories={categories}
-                          selected={category}
-                          onSelect={(c) => {
-                            setCategory(c);
-                            setSortOrder("");
-                          }}
-                        />
-                      </Col>
-                      <Col md={10}>
-                        <SortControl
-                          sortOrder={sortOrder}
-                          onSortChange={setSortOrder}
-                        />
-                        <ProductGrid
-                          products={filtered}
-                          onViewDetails={(p) => {
-                            localStorage.setItem("lastViewed", p.id);
-                            navigate(`/product/${p.id}`);
-                          }}
-                        />
-                      </Col>
-                    </Row>
-                  </Container>
-                </>
-              }
-            />
-
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminPage />
-                </AdminRoute>
-              }
-            ></Route>
-            {/* Public auth routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route
-              path="/admin/*"
-              element={
-                <AdminRoute>
-                  <AdminPage />
-                </AdminRoute>
-              }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="products" element={<ProductsAdmin />} />
-              <Route path="users" element={<UserManagement />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="analytics" element={<Analytics />} />
-            </Route>
-
-            {/* User profile routes */}
-            <Route
-              path="/profile"
-              element={
-                <PrivateRoute>
-                  <ProfilePage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/orders"
-              element={
-                <PrivateRoute>
-                  <OrdersPage />
-                </PrivateRoute>
-              }
-            />
-
-            {/* Protected checkout */}
-            <Route
-              path="/checkout"
-              element={
-                <PrivateRoute>
-                  <CheckoutPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <AdminRoute>
-                  <UserManagement />
-                </AdminRoute>
-              }
-            />
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-        
-        <Footer />
-      </div>
+      <AppContent />
     </AuthProvider>
   );
 }

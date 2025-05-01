@@ -1,5 +1,52 @@
 // src/components/AuthContext.js
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
+import { getCart } from "../utils/cartUtils";
+
+// Define MOCK_PRODUCTS here to avoid the undefined error
+const MOCK_PRODUCTS = [
+  {
+    id: 1,
+    name: "Gaming Laptop",
+    description: "High-performance gaming laptop with RGB keyboard",
+    price: 1299.99,
+    imageUrl: ""
+  },
+  {
+    id: 2,
+    name: "Mechanical Keyboard",
+    description: "Tactile mechanical keyboard with customizable backlighting",
+    price: 129.99,
+    imageUrl: ""
+  },
+  {
+    id: 3,
+    name: "Wireless Mouse",
+    description: "Ergonomic wireless mouse with long battery life",
+    price: 59.99,
+    imageUrl: ""
+  },
+  {
+    id: 4,
+    name: "LED Monitor",
+    description: "27-inch LED monitor with high refresh rate",
+    price: 249.99,
+    imageUrl: ""
+  },
+  {
+    id: 5,
+    name: "USB Hub",
+    description: "Multi-port USB hub with fast charging",
+    price: 39.99,
+    imageUrl: ""
+  },
+  {
+    id: 6,
+    name: "External SSD",
+    description: "Fast external SSD with USB-C connectivity",
+    price: 89.99,
+    imageUrl: ""
+  }
+];
 
 export const AuthContext = createContext();
 
@@ -8,44 +55,89 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(null);
-  const cartCount = getCart().reduce((sum, p) => sum + p.qty, 0);
-  // on mount, check localStorage
-  useEffect(() => {
-    // Fetch products from API or use mock data
-    const fetchProducts = async () => {
-      try {
-        // Use authentication headers if available
-        const headers = isAuthenticated && isAuthenticated() ? getAuthHeaders() : {};
-        
-        console.log("Fetching products", { isAuth: isAuthenticated ? isAuthenticated() : false });
-        const response = await fetch("/api/products", { headers });
-        
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log("Fetched products:", data);
-        
-        if (Array.isArray(data) && data.length > 0) {
-          setProducts(data);
-        } else {
-          // If API returns empty or invalid data, use mock data
-          console.log("Using mock product data due to empty response");
-          setProducts(MOCK_PRODUCTS);
-        }
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        // Use mock data on error
-        console.log("Using mock product data due to error");
-        setProducts(MOCK_PRODUCTS);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const [products, setProducts] = useState([]);
 
+  // Define isAuthenticated and getAuthHeaders as regular functions
+  const isAuthenticated = () => {
+    return !!user && !!token;
+  };
+
+  const getAuthHeaders = () => {
+    const currentToken = localStorage.getItem("token");
+    if (!currentToken) {
+      console.warn("getAuthHeaders called but no token found in localStorage");
+      return { "Content-Type": "application/json" };
+    }
+    
+    return { 
+      "Authorization": `Bearer ${currentToken}`,
+      "Content-Type": "application/json" 
+    };
+  };
+
+  // Define fetchProducts as a useCallback so it can be referenced consistently
+  const fetchProducts = useCallback(async () => {
+    try {
+      // Check for authentication token
+      const token = localStorage.getItem("token");
+      const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+      
+      console.log("Fetching products");
+      const response = await fetch("/api/products", {
+        headers: headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Fetched products:", data);
+      
+      if (Array.isArray(data) && data.length > 0) {
+        setProducts(data);
+      } else {
+        // If API returns empty or invalid data, use mock data
+        console.log("Using mock product data due to empty response");
+        setProducts(MOCK_PRODUCTS);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      // Use mock data on error
+      console.log("Using mock product data due to error");
+      setProducts(MOCK_PRODUCTS);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // on mount, check localStorage for existing auth
+  useEffect(() => {
+    // Try to load user and token from localStorage
+    const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+    
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setToken(storedToken);
+        console.log("Loaded auth from localStorage:", { hasUser: true, hasToken: true });
+      } catch (err) {
+        console.error("Error parsing stored user data:", err);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
+    } else {
+      console.log("No stored auth found in localStorage");
+    }
+
+    // Set loading to false after auth check
+    setLoading(false);
+    
+    // Fetch products after auth check
     fetchProducts();
-  }, [isAuthenticated, getAuthHeaders]);
+  }, [fetchProducts]);
 
   // Login function
   const login = async (username, password) => {
@@ -111,6 +203,9 @@ export const AuthProvider = ({ children }) => {
           isAdmin: userData.isAdmin
         });
         
+        // Refresh products after login
+        fetchProducts();
+        
         return true;
       } catch (apiError) {
         console.error("API Login error:", apiError);
@@ -144,6 +239,9 @@ export const AuthProvider = ({ children }) => {
             hasToken: true,
             isAdmin: mockUser.isAdmin
           });
+          
+          // Refresh products after mock login
+          fetchProducts();
           
           return true;
         } else {
@@ -240,24 +338,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     console.log("Logged out, auth state cleared");
-  };
-
-  const isAuthenticated = () => {
-    return !!user && !!token;
-  };
-
-  // Get authentication headers for API requests
-  const getAuthHeaders = () => {
-    const currentToken = localStorage.getItem("token");
-    if (!currentToken) {
-      console.warn("getAuthHeaders called but no token found in localStorage");
-      return { "Content-Type": "application/json" };
-    }
     
-    return { 
-      "Authorization": `Bearer ${currentToken}`,
-      "Content-Type": "application/json" 
-    };
+    // Refresh products after logout (will use mock data since auth is cleared)
+    fetchProducts();
   };
 
   return (
@@ -272,6 +355,8 @@ export const AuthProvider = ({ children }) => {
         getAuthHeaders,
         loading,
         error,
+        products,
+        fetchProducts
       }}
     >
       {children}
