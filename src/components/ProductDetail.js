@@ -25,24 +25,18 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { isAuthenticated, getAuthHeaders } = useContext(AuthContext);
+
   useEffect(() => {
-    // Try to fetch product details from API
+    // Fetch product details from API - this should be a public endpoint!
     const fetchProductDetail = async () => {
       try {
-        // Check if authentication is available before using it
-        let headers = {};
-        if (
-          isAuthenticated &&
-          typeof isAuthenticated === "function" &&
-          isAuthenticated()
-        ) {
-          headers = getAuthHeaders ? getAuthHeaders() : {};
-        }
-
         console.log(`Fetching product ${id}`);
         setLoading(true);
-        const response = await fetch(`/api/products/${id}`, { headers });
+
+        // Make a simple fetch without auth headers
+        const response = await fetch(`/api/products/${id}`, {
+          headers: { "Content-Type": "application/json" }, // No auth header
+        });
 
         if (!response.ok) {
           throw new Error(`Failed to fetch product: ${response.status}`);
@@ -64,7 +58,7 @@ const ProductDetail = () => {
     };
 
     fetchProductDetail();
-  }, [id, isAuthenticated, getAuthHeaders]);
+  }, [id]);
 
   if (loading) {
     return (

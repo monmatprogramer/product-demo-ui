@@ -1,7 +1,7 @@
-// src/App.js
+// src/App.js - Updated to better handle authentication states
 import React, { useEffect, useState, useMemo, useContext } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
-import { Container, Row, Col } from "react-bootstrap";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { Container, Row, Col, Alert } from "react-bootstrap";
 
 import NavbarBar from "./components/NavbarBar";
 import Hero from "./components/Hero";
@@ -34,7 +34,7 @@ import Analytics from "./components/admin/Analytics";
 import MyComponent from './components/MyComponent';
 
 function AppContent() {
-  const { products, loading } = useContext(AuthContext);
+  const { products, loading, error, authRequired, isAuthenticated } = useContext(AuthContext);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [sortOrder, setSortOrder] = useState("");
@@ -104,6 +104,12 @@ function AppContent() {
       />
 
       <main className="flex-grow-1">
+        {error && !authRequired && (
+          <Container className="mt-3">
+            <Alert variant="danger">{error}</Alert>
+          </Container>
+        )}
+        
         <Routes>
           <Route
             path="/"
@@ -141,7 +147,15 @@ function AppContent() {
             }
           />
 
-          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route 
+            path="/product/:id" 
+            element={
+              authRequired && !isAuthenticated() ? 
+              <Navigate to="/login" state={{ from: window.location.pathname }} /> : 
+              <ProductDetail />
+            } 
+          />
+          
           <Route path="/cart" element={<CartPage />} />
           <Route
             path="/admin"

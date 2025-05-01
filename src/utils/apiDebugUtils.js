@@ -1,107 +1,76 @@
 // src/utils/apiDebugUtil.js
 
 /**
- * Enhanced fetch function with debugging
- * @param {string} url - URL to fetch
- * @param {Object} options - Fetch options
- * @returns {Promise<Response>} - Response 
- */
-export const debugFetch = async (url, options = {}) => {
-  const startTime = performance.now();
-  console.group(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-  
-  // Log request details
-  console.log('Request Options:', {
-    ...options,
-    headers: options.headers || {}
-  });
-  
-  if (options.body) {
-    try {
-      console.log('Request Body:', typeof options.body === 'string' 
-        ? JSON.parse(options.body) 
-        : options.body);
-    } catch (e) {
-      console.log('Request Body (raw):', options.body);
-    }
-  }
-  
-  try {
-    // Make the actual request
-    const response = await fetch(url, options);
-    const duration = Math.round(performance.now() - startTime);
-    
-    // Log basic response info
-    console.log(`Response received in ${duration}ms - Status: ${response.status} ${response.statusText}`);
-    console.log('Response Headers:', Object.fromEntries([...response.headers]));
-    
-    // Clone response so we can still use it after reading
-    const clonedResponse = response.clone();
-    
-    // Try to log response body
-    try {
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const data = await clonedResponse.json();
-        console.log('Response JSON:', data);
-      } else {
-        const text = await clonedResponse.text();
-        console.log('Response Text:', text.length > 1000 
-          ? text.substring(0, 1000) + '... (truncated)' 
-          : text);
-      }
-    } catch (e) {
-      console.log('Could not parse response body:', e.message);
-    }
-    
-    console.groupEnd();
-    return response;
-  } catch (error) {
-    console.error('⚠️ Fetch Error:', error);
-    console.groupEnd();
-    throw error;
-  }
-};
-
-/**
- * Test API endpoints for connectivity
+ * Utility to test API endpoints accessibility
+ * This can be used in the browser console to diagnose API issues
  */
 export const testApiEndpoints = async () => {
   console.group('🔍 API Connectivity Tests');
   
-  // Tests to run
-  const tests = [
-    { name: 'Products API', url: '/api/products', method: 'GET' },
-    { name: 'Login API', url: '/api/auth/login', method: 'POST', 
-      body: { username: 'test', password: 'test' } },
-    { name: 'Register API', url: '/api/auth/register', method: 'POST', 
-      body: { username: 'testuser', password: 'testpass', email: 'test@example.com' } }
+  // Core endpoints to test - focus on product endpoints
+  const endpoints = [
+    { name: 'All Products', url: '/api/products', method: 'GET' },
+    { name: 'Single Product', url: '/api/products/1', method: 'GET' },
+    { name: 'Login Endpoint', url: '/api/auth/login', method: 'OPTIONS' }
   ];
   
-  // Run tests
-  for (const test of tests) {
+  for (const endpoint of endpoints) {
     try {
-      console.log(`Testing ${test.name}...`);
+      console.log(`Testing ${endpoint.name}...`);
       
-      const options = {
-        method: test.method,
-        headers: { 'Content-Type': 'application/json' }
-      };
-      
-      if (test.body) {
-        options.body = JSON.stringify(test.body);
+      // For GET requests, actually make the request
+      if (endpoint.method === 'GET') {
+        const startTime = performance.now();
+        const response = await fetch(endpoint.url);
+        const duration = Math.round(performance.now() - startTime);
+        
+        console.log(`${endpoint.name}: Status ${response.status} (${duration}ms)`);
+        
+        if (response.ok) {
+          console.log(`✅ ${endpoint.name} is accessible!`);
+          try {
+            const data = await response.json();
+            console.log(`Data received: ${Array.isArray(data) ? `Array with ${data.length} items` : 'Object'}`);
+          } catch (e) {
+            console.log(`Could not parse response as JSON: ${e.message}`);
+          }
+        } else {
+          console.error(`❌ ${endpoint.name} returned error ${response.status}`);
+        }
+      } else {
+        // For non-GET methods, just make an OPTIONS request to check CORS
+        const response = await fetch(endpoint.url, { method: 'OPTIONS' });
+        console.log(`${endpoint.name} OPTIONS status: ${response.status}`);
       }
-      
-      // Just make an OPTIONS request to check if endpoint exists
-      const optionsResponse = await fetch(test.url, { method: 'OPTIONS' });
-      console.log(`${test.name} OPTIONS status:`, optionsResponse.status);
-      
-      // Log the result
-      console.log(`${test.name}: ${optionsResponse.ok ? '✅ Available' : '❌ Not available'}`);
+    } catch (error) {
+      console.error(`❌ Error testing ${endpoint.name}:`, error.message);
+    }
+  }
+  
+  console.log('\nTesting authentication state:');
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
+  
+  console.log(`Token exists: ${!!token}`);
+  console.log(`User data exists: ${!!user}`);
+  
+  if (user) {
+    try {
+      const userData = JSON.parse(user);
+      console.log(`Logged in as: ${userData.username} (${userData.isAdmin ? 'Admin' : 'Regular user'})`);
     } catch (e) {
-      console.error(`${test.name}: ❌ Error - ${e.message}`);
+      console.log('Error parsing user data');
     }
   }
   
   console.groupEnd();
+  
+  console.log('\n📋 How to fix common issues:');
+  console.log('1. If products endpoints return 401, your backend is requiring authentication for products');
+  console.log('2. Make sure your backend allows unauthenticated access to /api/products');
+  console.log('3. Check setupProxy.js to ensure it\'s not forwarding auth headers to product endpoints');
+  console.log('4. Verify your backend is running at http://localhost:8080');
 };
+
+// You can use this in the browser console by importing and running it:
+// import { testApiEndpoints } from './utils/apiDebugUtil.js'; testApiEndpoints();

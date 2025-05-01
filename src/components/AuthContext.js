@@ -1,4 +1,4 @@
-// src/components/AuthContext.js - Updated version
+// src/components/AuthContext.js
 import React, { createContext, useState, useEffect, useCallback } from "react";
 
 export const AuthContext = createContext();
@@ -26,28 +26,19 @@ export const AuthProvider = ({ children }) => {
       : { "Content-Type": "application/json" };
   };
 
-  // Fetch products with improved error handling
-  // Update the fetchProducts function in AuthContext.js
-  // Revised fetchProducts in AuthContext.js
+  // Fetch products - IMPORTANT: This should be a public endpoint with no auth required
   const fetchProducts = useCallback(async () => {
-    // No need to check for token here anymore for fetching products
-
     try {
       setLoading(true);
       setError(null);
-      const url = "/api/products"; // The public endpoint
+      const url = "/api/products"; // Public endpoint
 
-      // Define headers *without* Authorization for this public request
-      const headers = {
-        "Content-Type": "application/json",
-        // No 'Authorization' header needed
-      };
+      console.log("Fetching public products from:", url);
 
-      console.log("Attempting to fetch public products from:", url);
-
+      // Make a simple fetch without auth headers
       const response = await fetch(url, {
         method: "GET",
-        headers: headers, // Use headers without Authorization
+        headers: { "Content-Type": "application/json" } // No auth header
       });
 
       console.log("Products API response status:", response.status);
@@ -55,7 +46,6 @@ export const AuthProvider = ({ children }) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("API Error Response:", errorText);
-        // Provide a more specific error if possible
         throw new Error(
           `HTTP error! status: ${response.status} - ${
             errorText || "Failed to fetch"
@@ -81,9 +71,9 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []); // Keep dependencies empty if it doesn't rely on external state/props changing
+  }, []); // Keep dependencies empty if it doesn't rely on external state/props
 
-  // Login function with direct fetch instead of using the login function
+  // Login function
   const login = async (username, password) => {
     try {
       setLoading(true);
@@ -120,7 +110,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
       }
       
-      // Create user object - IMPORTANT: Include role/isAdmin
+      // Create user object
       const userData = {
         username: username,
         isAdmin: data.role === 'ADMIN', // Make sure your backend returns role info
@@ -134,7 +124,8 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setToken(data.token || '');
       
-      // Fetch products after login
+      // Fetch products after login - though this isn't strictly necessary
+      // since we already fetch them for all users
       fetchProducts();
       
       return true;
@@ -157,7 +148,6 @@ export const AuthProvider = ({ children }) => {
     // Reset state
     setUser(null);
     setToken(null);
-    setProducts([]);
     setError(null);
   };
 
@@ -172,19 +162,16 @@ export const AuthProvider = ({ children }) => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         setToken(storedToken);
-
-        // Try to fetch products if authenticated
-        fetchProducts();
       } catch (error) {
         console.error("Error parsing stored user:", error);
         logout();
       }
-    } else {
-      // Try to fetch public products even if not authenticated
-      fetchProducts();
     }
 
-    // Always set loading to false after initial check
+    // Always fetch products regardless of authentication status
+    fetchProducts();
+    
+    // Set loading to false after initial check
     setLoading(false);
   }, [fetchProducts]);
 
