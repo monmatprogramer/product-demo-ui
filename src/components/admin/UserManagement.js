@@ -54,13 +54,12 @@ export default function UserManagement() {
   const [usingLocalStorage, setUsingLocalStorage] = useState(false);
 
   // Function to fetch users data with authentication
-  const fetchUsers = async () => {
+  function fetchUsers() {
     // Reset state
     setLoading(true);
     setError(null);
     setIsRefreshing(true);
-    setUsingLocalStorage(false);
-
+  
     try {
       // For development mode, use direct API call without CORS issues
       const apiUrl = '/api/admin/users'; // This will be proxied by setupProxy.js
@@ -69,45 +68,38 @@ export default function UserManagement() {
       const headers = getAuthHeaders();
       console.log("Using auth headers:", headers);
       
-      const response = await fetch(apiUrl, {
+      fetch(apiUrl, {
         method: "GET",
         headers: headers
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API Error Response:", errorText);
-        throw new Error(`Failed to fetch users: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Users fetched successfully:", data);
-      setUsers(data || []);
-      setError(null);
-    } catch (err) {
-      console.error("API fetch error:", err);
-      
-      // Fallback to localStorage if API fails
-      setUsingLocalStorage(true);
-      const storedUsers = localStorage.getItem("adminUsers");
-      
-      if (storedUsers) {
-        try {
-          const parsedUsers = JSON.parse(storedUsers);
-          setUsers(parsedUsers);
-          setError(`Could not connect to backend API. Using stored data instead. (${err.message})`);
-        } catch (parseError) {
-          console.error("Error parsing stored users:", parseError);
-          createAndUseDefaultUsers();
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch users: ${response.status}`);
         }
-      } else {
-        createAndUseDefaultUsers();
-      }
-    } finally {
+        return response.json();
+      })
+      .then(data => {
+        console.log("Users fetched successfully:", data);
+        setUsers(data || []);
+        setError(null);
+      })
+      .catch(err => {
+        console.error("API fetch error:", err);
+        setError(`Error fetching users: ${err.message}. Please try again later.`);
+        setUsers([]);
+      })
+      .finally(() => {
+        setLoading(false);
+        setIsRefreshing(false);
+      });
+    } catch (err) {
+      console.error("Exception during fetch setup:", err);
+      setError(`An unexpected error occurred: ${err.message}`);
       setLoading(false);
       setIsRefreshing(false);
+      setUsers([]);
     }
-  };
+  }
 
   // Helper function to create default users if none exist
   const createAndUseDefaultUsers = () => {

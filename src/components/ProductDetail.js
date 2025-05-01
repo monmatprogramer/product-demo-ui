@@ -76,45 +76,37 @@ const ProductDetail = () => {
     useEffect(() => {
         // Try to fetch product details from API
         const fetchProductDetail = async () => {
-            try {
-                // Check if authentication is available before using it
-                let headers = {};
-                if (isAuthenticated && typeof isAuthenticated === 'function' && isAuthenticated()) {
-                    headers = getAuthHeaders ? getAuthHeaders() : {};
-                }
-                
-                console.log(`Fetching product ${id}`);
-                const response = await fetch(`/api/products/${id}`, { headers });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch product: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log("Fetched product:", data);
-                setProduct(data);
-                setLoading(false);
-                setError(null);
-            } catch (err) {
-                console.error("Error fetching product:", err);
-                
-                // Try to find a matching mock product
-                const mockProduct = MOCK_PRODUCTS.find(p => p.id.toString() === id);
-                
-                if (mockProduct) {
-                    console.log("Using mock product:", mockProduct);
-                    setProduct(mockProduct);
-                    setError("Using demo product data due to API connection issues.");
-                } else {
-                    setError("Product not found. The product may have been removed or you may have followed an invalid link.");
-                }
-                
-                setLoading(false);
+          try {
+            // Check if authentication is available before using it
+            let headers = {};
+            if (isAuthenticated && typeof isAuthenticated === 'function' && isAuthenticated()) {
+              headers = getAuthHeaders ? getAuthHeaders() : {};
             }
+            
+            console.log(`Fetching product ${id}`);
+            setLoading(true);
+            const response = await fetch(`/api/products/${id}`, { headers });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch product: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log("Fetched product:", data);
+            setProduct(data);
+            setLoading(false);
+            setError(null);
+          } catch (err) {
+            console.error("Error fetching product:", err);
+            setProduct(null);
+            setError("Failed to load product. The product may not exist or the server is unavailable.");
+            setLoading(false);
+          }
         };
-
+      
         fetchProductDetail();
-    }, [id, isAuthenticated, getAuthHeaders]);
+      }, [id, isAuthenticated, getAuthHeaders]);
+      
 
     if (loading) {
         return (

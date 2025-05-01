@@ -60,29 +60,38 @@ export default function ProductsAdmin() {
 
     const fetchProducts = async () => {
         setLoading(true);
+        setError(null);
+        
         try {
-            const data = await safeJsonFetch('/api/products');
-            
-            // Check if we got valid data
-            if (Array.isArray(data) && data.length > 0) {
-                setProducts(data);
-                setError(null);
-                setUsingMockData(false);
-            } else {
-                console.log("API returned empty or invalid data, using mock data");
-                setProducts(MOCK_PRODUCTS);
-                setError("Could not retrieve products from the server. Using demo data instead.");
-                setUsingMockData(true);
-            }
+          const headers = getAuthHeaders();
+          
+          const response = await fetch('/api/products', { 
+            method: 'GET',
+            headers 
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch products: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          // Check if we got valid data
+          if (Array.isArray(data)) {
+            setProducts(data);
+            setError(null);
+          } else {
+            setProducts([]);
+            setError("No products returned from API. The data format may be incorrect.");
+          }
         } catch (err) {
-            console.error("Error fetching products:", err);
-            setError("Failed to load products from server. Using demo data instead.");
-            setProducts(MOCK_PRODUCTS);
-            setUsingMockData(true);
+          console.error("Error fetching products:", err);
+          setError("Failed to load products. Please check your connection or contact support.");
+          setProducts([]);
         } finally {
-            setLoading(false);
+          setLoading(false);
         }
-    };
+      };
 
     useEffect(() => {
         fetchProducts();
