@@ -27,58 +27,52 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Fetch products with improved error handling
+  // Update the fetchProducts function in AuthContext.js
+  // Revised fetchProducts in AuthContext.js
   const fetchProducts = useCallback(async () => {
+    // No need to check for token here anymore for fetching products
+
     try {
       setLoading(true);
       setError(null);
+      const url = "/api/products"; // The public endpoint
 
-      // Use relative path with proxy
-      const url = '/api/products';
-      let headers = { 'Content-Type': 'application/json' };
-      
-      // Get the token and add it if available
-      const token = localStorage.getItem("token");
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
+      // Define headers *without* Authorization for this public request
+      const headers = {
+        "Content-Type": "application/json",
+        // No 'Authorization' header needed
+      };
 
-      console.log("Fetching products with headers:", headers);
-      
+      console.log("Attempting to fetch public products from:", url);
+
       const response = await fetch(url, {
         method: "GET",
-        headers: headers,
+        headers: headers, // Use headers without Authorization
       });
 
-      // Log response info for debugging
       console.log("Products API response status:", response.status);
-      
-      // Handle unauthorized access for a better user experience
-      if (response.status === 401) {
-        // This is normal - products may require auth
-        console.log("Authentication required for products. This is expected if not logged in.");
-        setProducts([]);
-        return;
-      }
 
-      // Check if the response is successful
       if (!response.ok) {
         const errorText = await response.text();
         console.error("API Error Response:", errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Provide a more specific error if possible
+        throw new Error(
+          `HTTP error! status: ${response.status} - ${
+            errorText || "Failed to fetch"
+          }`
+        );
       }
 
-      // Parse the JSON response
       const data = await response.json();
-      console.log("Products fetched:", data);
+      console.log("Public products fetched:", data);
 
-      // Validate the data
       if (Array.isArray(data)) {
         setProducts(data);
         setError(null);
       } else {
-        // If no valid products, set empty array
+        console.warn("API did not return an array for products:", data);
         setProducts([]);
-        setError("No products returned from API. Please check your connection.");
+        setError("Received invalid data format for products.");
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -87,99 +81,66 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Keep dependencies empty if it doesn't rely on external state/props changing
 
   // Login function with direct fetch instead of using the login function
   const login = async (username, password) => {
     try {
       setLoading(true);
       setError(null);
-
+  
       console.log("Attempting login for user:", username);
-
-      // Use relative URL for proxy to handle
-      const loginUrl = '/api/auth/login';
-
-      // Prepare the request body
-      const requestBody = {
-        username: username.trim(),
-        password: password
-      };
-
-      console.log("Login request payload:", requestBody);
-
+      
       // Make the login request
-      const response = await fetch(loginUrl, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ username, password })
       });
-
-      console.log("Login response status:", response.status);
       
-      // Check if the response is successful
       if (!response.ok) {
-        // Try to parse error message from the response
+        // Handle error response
         let errorMessage;
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || `Login failed with status: ${response.status}`;
         } catch (e) {
-          // If we can't parse JSON, use text or status
-          const errorText = await response.text();
-          errorMessage = errorText || `Login failed with status: ${response.status}`;
+          errorMessage = `Login failed with status: ${response.status}`;
         }
-        console.error("Login error response:", errorMessage);
         throw new Error(errorMessage);
       }
-
-      // Parse the successful response
+  
+      // Parse successful response
       const data = await response.json();
-      console.log("Login successful, received data:", data);
-
-      // Check for token in response
-      if (!data.token) {
-        throw new Error('Invalid login response: No token received');
-      }
-
+      
       // Store the authentication token
-      localStorage.setItem('token', data.token);
-
-      // Store refresh token if provided
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
       }
-
-      // Create user object from the response
+      
+      // Create user object - IMPORTANT: Include role/isAdmin
       const userData = {
-        id: data.userId || data.id,
         username: username,
-        email: data.email,
-        role: data.role || 'USER',
-        isAdmin: data.role === 'ADMIN'
+        isAdmin: data.role === 'ADMIN', // Make sure your backend returns role info
+        role: data.role || 'USER'
       };
-
-      console.log("Storing user data:", userData);
-
+      
       // Store user data in localStorage
       localStorage.setItem('user', JSON.stringify(userData));
-
+      
       // Update state
       setUser(userData);
-      setToken(data.token);
-
-      // Fetch products after successful login
-      await fetchProducts();
-
+      setToken(data.token || '');
+      
+      // Fetch products after login
+      fetchProducts();
+      
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      
-      // Set error message for display
       setError(error.message || 'Login failed. Please try again.');
-      
       return false;
     } finally {
       setLoading(false);
