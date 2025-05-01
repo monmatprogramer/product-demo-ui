@@ -71,16 +71,19 @@ const ProductDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
-    const auth = useContext(AuthContext);
+    const { isAuthenticated, getAuthHeaders } = useContext(AuthContext);
 
     useEffect(() => {
         // Try to fetch product details from API
         const fetchProductDetail = async () => {
             try {
-                // Use auth headers if user is logged in
-                const headers = auth.isAuthenticated() ? auth.getAuthHeaders() : {};
+                // Check if authentication is available before using it
+                let headers = {};
+                if (isAuthenticated && typeof isAuthenticated === 'function' && isAuthenticated()) {
+                    headers = getAuthHeaders ? getAuthHeaders() : {};
+                }
                 
-                console.log(`Fetching product ${id} with auth:`, auth.isAuthenticated());
+                console.log(`Fetching product ${id}`);
                 const response = await fetch(`/api/products/${id}`, { headers });
                 
                 if (!response.ok) {
@@ -111,7 +114,7 @@ const ProductDetail = () => {
         };
 
         fetchProductDetail();
-    }, [id, auth]);
+    }, [id, isAuthenticated, getAuthHeaders]);
 
     if (loading) {
         return (

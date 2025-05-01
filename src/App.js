@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useEffect, useState, useMemo, useContext } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Container, Row, Col } from "react-bootstrap";
 
@@ -20,7 +20,7 @@ import Loader from "./components/Loader";
 import Footer from "./components/Footer";
 
 import { getCart } from "./utils/cartUtils";
-import { AuthContext } from "./components/AuthContext";
+import { AuthContext, AuthProvider } from "./components/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 import { safeJsonFetch } from "./utils/apiUtils";
 
@@ -87,7 +87,6 @@ function App() {
   const [category, setCategory] = useState("All");
   const [sortOrder, setSortOrder] = useState("");
   const navigate = useNavigate();
-  const auth = useContext(AuthContext);
 
   const cartCount = getCart().reduce((sum, p) => sum + p.qty, 0);
 
@@ -95,11 +94,9 @@ function App() {
     // Fetch products from API or use mock data
     const fetchProducts = async () => {
       try {
-        // Use auth headers if user is logged in
-        const headers = auth.isAuthenticated() ? auth.getAuthHeaders() : {};
-        
-        console.log("Fetching products with auth:", auth.isAuthenticated());
-        const response = await fetch("/api/products", { headers });
+        // No need to check auth here - let's simplify this function
+        console.log("Fetching products");
+        const response = await fetch("/api/products");
         
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
@@ -126,7 +123,7 @@ function App() {
     };
 
     fetchProducts();
-  }, [auth]);
+  }, []);
 
   const categories = useMemo(() => {
     // Safely create categories from products
