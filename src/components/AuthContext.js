@@ -28,11 +28,54 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Mock login function - in a real app, this would call an API
- // Modified login function in AuthContext.js
+  // Modify the login function in AuthContext.js to properly handle API tokens
 const login = async (username, password) => {
   setError(null);
   
   try {
+    // Try to authenticate with API
+    try {
+      const response = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Invalid credentials");
+      }
+      
+      const data = await response.json();
+      
+      if (data.token) {
+        // Store token and user data
+        localStorage.setItem("token", data.token);
+        
+        if (data.refreshToken) {
+          localStorage.setItem("refreshToken", data.refreshToken);
+        }
+        
+        // Create user object
+        const userData = {
+          userId: data.userId || 1,
+          username: username,
+          email: data.email || null,
+          isAdmin: data.role === "ADMIN" || username === "admin" // Fallback for demo
+        };
+        
+        localStorage.setItem("user", JSON.stringify(userData));
+        setUser(userData);
+        setToken(data.token);
+        return true;
+      }
+      
+      throw new Error("Invalid response from server");
+    } catch (apiError) {
+      console.log("API login failed, trying mock authentication");
+      
+      // Fall through to mock authentication if API fails
+    }
+    
     // For demo purposes, simulate API call using localStorage
     const storedUsers = localStorage.getItem("adminUsers");
     let users = storedUsers ? JSON.parse(storedUsers) : [];
@@ -42,7 +85,7 @@ const login = async (username, password) => {
       users = [{
         id: 1,
         username: 'admin',
-        email: null,
+        email: 'admin@example.com',
         role: 'ADMIN'
       }];
       localStorage.setItem("adminUsers", JSON.stringify(users));
@@ -83,6 +126,7 @@ const login = async (username, password) => {
     return false;
   }
 };
+
 
   // Mock register function
   const register = async (userData) => {
@@ -133,9 +177,16 @@ const login = async (username, password) => {
   };
 
   // Get authentication headers for API requests
-  const getAuthHeaders = () => {
-    return token ? { Authorization: `Bearer ${token}` } : {};
+  // Modify the getAuthHeaders function in AuthContext.js
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return token ? { 
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json" 
+  } : {
+    "Content-Type": "application/json"
   };
+};
 
   return (
     <AuthContext.Provider
