@@ -8,11 +8,12 @@
 //     ? "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com/api"
 //     : "/api";
 
-// export default API_BASE_URL;
 // src/utils/apiConfig.js
 
-// Always use the relative /api prefix — CloudFront will proxy it to your EB API
-const API_BASE_URL =
-  "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com/api";
+/**
+ * In production we want every fetch to go to `/api/...`
+ * which CloudFront will proxy over HTTPS to your back end.
+ */
+const API_BASE_URL = '/api';
 
 export default API_BASE_URL;
