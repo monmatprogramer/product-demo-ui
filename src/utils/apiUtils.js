@@ -1,5 +1,7 @@
 // src/utils/apiUtils.js
 
+import proxyApi from './proxyApiClient';
+
 /**
  * Handles API errors in a standardized way
  *
@@ -33,6 +35,7 @@ export function formatApiError(error) {
 
 /**
  * Fetches JSON data with proper error handling for cross-environment deployments
+ * This version uses proxy approach for production
  *
  * @param {string} url - The URL path (without the base URL)
  * @param {Object} options - Fetch options
@@ -42,121 +45,107 @@ export function formatApiError(error) {
 export async function safeJsonFetch(url, options = {}) {
   // Ensure URL starts with / for consistency
   const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
-
-  // Create the correct URL based on environment
-  let fetchUrl = normalizedUrl;
-  if (process.env.NODE_ENV === "production") {
-    // SOLUTION: Use CORS proxy to bypass mixed content issue
-    // This allows HTTPS -> HTTP requests by proxying through a CORS proxy
-    const apiPath = "product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
-    
-    // Use a CORS proxy service (this is a public service - for production use your own)
-    const corsProxyUrl = "https://corsproxy.io/?";
-    
-    // Encode the full URL to the API endpoint
-    const path = normalizedUrl.startsWith("/api/")
-      ? normalizedUrl
-      : `/api${normalizedUrl}`;
-    
-    const encodedApiUrl = encodeURIComponent(`http://${apiPath}${path}`);
-    fetchUrl = `${corsProxyUrl}${encodedApiUrl}`;
-    
-    console.log(`Using CORS proxy: ${fetchUrl}`);
-  }
+  
+  // Extract path, removing /api prefix if needed
+  const apiPath = normalizedUrl.startsWith("/api/") 
+    ? normalizedUrl.substring(4) // Remove /api/
+    : normalizedUrl;
 
   try {
-    console.log(`Fetching data from: ${fetchUrl}`);
-
-    // For production with the proxy, we need these specific settings
-    const fetchOptions = {
-      ...options,
-      mode: 'cors',
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        ...options.headers,
-      },
-    };
-
-    // Note: We don't use credentials with the proxy
-    if (process.env.NODE_ENV !== "production") {
-      fetchOptions.credentials = 'include';
-    }
-
-    const response = await fetch(fetchUrl, fetchOptions);
-
-    // Log response details for debugging
-    console.log(`Response status: ${response.status} ${response.statusText}`);
-
-    // Handle non-success responses
-    if (!response.ok) {
-      // Check content type to better handle errors
-      const contentType = response.headers.get("content-type");
-
-      if (contentType && contentType.includes("application/json")) {
-        // If JSON error response
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `Server error: ${response.status}`
-        );
+    // For production environment, use the iframe proxy
+    if (process.env.NODE_ENV === "production") {
+      console.log(`Using API proxy for: ${apiPath}`);
+      
+      // Convert options to proxy format
+      const headers = options.headers || {};
+      
+      // Use appropriate method based on options
+      const method = options.method?.toUpperCase() || 'GET';
+      
+      let result;
+      if (method === 'GET') {
+        result = await proxyApi.get(apiPath, headers);
+      } else if (method === 'POST') {
+        // For POST, extract body data
+        let data = {};
+        if (options.body) {
+          try {
+            data = JSON.parse(options.body);
+          } catch (e) {
+            console.error('Error parsing request body:', e);
+          }
+        }
+        result = await proxyApi.post(apiPath, data, headers);
+      } else if (method === 'PUT') {
+        // For PUT, extract body data
+        let data = {};
+        if (options.body) {
+          try {
+            data = JSON.parse(options.body);
+          } catch (e) {
+            console.error('Error parsing request body:', e);
+          }
+        }
+        result = await proxyApi.put(apiPath, data, headers);
+      } else if (method === 'DELETE') {
+        result = await proxyApi.delete(apiPath, headers);
       } else {
-        // If non-JSON error (like HTML)
-        const errorText = await response.text();
-        // Only show the first part of error text to avoid huge HTML responses
-        const truncatedError =
-          errorText.substring(0, 150) + (errorText.length > 150 ? "..." : "");
-        throw new Error(
-          `Server error ${response.status}: ${
-            response.statusText || truncatedError
-          }`
-        );
+        throw new Error(`Unsupported method: ${method}`);
       }
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return null;
-    }
-
-    // Check if response is empty
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      console.warn(`Warning: Expected JSON response but got ${contentType}`);
-
-      // Try to read text response
-      const text = await response.text();
-      if (!text) {
+      
+      return result;
+    } 
+    // For development, use direct fetch
+    else {
+      console.log(`Direct API call to: ${normalizedUrl}`);
+      const response = await fetch(normalizedUrl, options);
+      
+      // Handle non-success responses
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Server error: ${response.status}`);
+        } else {
+          const errorText = await response.text();
+          const truncatedError = errorText.substring(0, 150) + (errorText.length > 150 ? "..." : "");
+          throw new Error(`Server error ${response.status}: ${response.statusText || truncatedError}`);
+        }
+      }
+      
+      // Handle 204 No Content
+      if (response.status === 204) {
         return null;
       }
-
-      // Check if it's JSON anyway
-      try {
-        return JSON.parse(text);
-      } catch (error) {
-        console.error("Failed to parse non-JSON response:", error);
-        throw new Error(
-          `Server returned non-JSON response: ${text.substring(0, 50)}...`
-        );
+      
+      // Parse JSON response
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.warn(`Warning: Expected JSON response but got ${contentType}`);
+        
+        const text = await response.text();
+        if (!text) {
+          return null;
+        }
+        
+        try {
+          return JSON.parse(text);
+        } catch (error) {
+          console.error("Failed to parse non-JSON response:", error);
+          throw new Error(`Server returned non-JSON response: ${text.substring(0, 50)}...`);
+        }
       }
+      
+      return await response.json();
     }
-
-    // Parse JSON response normally
-    return await response.json();
   } catch (error) {
-    // Log details of the error
-    console.error(`API request failed: ${fetchUrl}`, error);
-
-    // Enhance error message for common deployment issues
-    if (
-      error.message.includes("Failed to fetch") ||
-      error.message.includes("NetworkError")
-    ) {
-      throw new Error(
-        `Network error: Could not connect to the API server. Check if CORS is enabled on your backend.`
-      );
+    console.error(`API request failed: ${apiPath}`, error);
+    
+    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      throw new Error(`Network error: Could not connect to the API server. Check if CORS is enabled on your backend.`);
     }
-
-    // If it's a more specific error from our code above, pass it through
+    
     throw error;
   }
 }
