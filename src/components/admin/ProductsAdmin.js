@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Table, Button, Spinner, Alert, Form, InputGroup } from 'react-bootstrap';
 import { FaPlus, FaEdit, FaTrash, FaSearch, FaBox } from 'react-icons/fa';
 import ProductFormModal from '../ProductFormModal';
-import { safeJsonFetch } from '../../utils/apiUtils';
+import { AuthContext } from '../AuthContext'; // Add this import
 
 export default function ProductsAdmin() {
+    // Get auth context
+    const { getAuthHeaders, user } = useContext(AuthContext); // Add this line
+    
     const [products, setProducts] = useState([]);
     const [modalProduct, setModalProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -13,13 +16,40 @@ export default function ProductsAdmin() {
 
     const fetchProducts = async () => {
         setLoading(true);
+        setError(null);
+        
         try {
-            const data = await safeJsonFetch('/api/products');
-            setProducts(data || []);
-            setError(null);
+            const headers = getAuthHeaders(); // Now this is defined
+            
+            console.log("Fetching products with headers:", headers);
+            
+            const response = await fetch('/api/products', { 
+                method: 'GET',
+                headers 
+            });
+            
+            console.log("Products API response status:", response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("API Error Response:", errorText);
+                throw new Error(`Failed to fetch products: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log("Products fetched:", data);
+            
+            // Check if we got valid data
+            if (Array.isArray(data)) {
+                setProducts(data);
+                setError(null);
+            } else {
+                setProducts([]);
+                setError("No products returned from API. The data format may be incorrect.");
+            }
         } catch (err) {
             console.error("Error fetching products:", err);
-            setError("Failed to load products. Please try again later.");
+            setError("Failed to load products: " + err.message);
             setProducts([]);
         } finally {
             setLoading(false);
@@ -34,12 +64,23 @@ export default function ProductsAdmin() {
         if (!window.confirm('Are you sure you want to delete this product?')) return;
         
         try {
-            const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete product');
+            const headers = getAuthHeaders();
+            
+            const response = await fetch(`/api/products/${id}`, { 
+                method: 'DELETE',
+                headers
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete product');
+            }
+            
             await fetchProducts();
+            setError("Product deleted successfully");
+            setTimeout(() => setError(null), 3000);
         } catch (err) {
             console.error("Error deleting product:", err);
-            setError("Failed to delete product. Please try again.");
+            setError("Failed to delete product: " + err.message);
         }
     };
 
@@ -64,7 +105,11 @@ export default function ProductsAdmin() {
             </div>
             
             {error && (
-                <Alert variant="danger" dismissible onClose={() => setError(null)}>
+                <Alert 
+                    variant={error.includes("success") ? "success" : "danger"} 
+                    dismissible 
+                    onClose={() => setError(null)}
+                >
                     {error}
                 </Alert>
             )}
@@ -161,7 +206,7 @@ export default function ProductsAdmin() {
             {modalProduct !== null && (
                 <ProductFormModal
                     product={modalProduct}
-                    onSaved={() => {
+                    onSaved={(savedProduct) => {
                         setModalProduct(null);
                         fetchProducts();
                     }}

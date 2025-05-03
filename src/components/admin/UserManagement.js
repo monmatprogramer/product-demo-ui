@@ -1,5 +1,5 @@
 // src/components/admin/UserManagement.js
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react"; // Added useCallback import
 import { AuthContext } from "../AuthContext";
 import {
   Table,
@@ -51,80 +51,72 @@ export default function UserManagement() {
   // Delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [usingLocalStorage, setUsingLocalStorage] = useState(false);
 
-  // Function to fetch users data with authentication
-  const fetchUsers = async () => {
+  // Define fetchUsers with useCallback to prevent infinite loop in useEffect
+  const fetchUsers = useCallback(async () => {
     // Reset state
     setLoading(true);
     setError(null);
     setIsRefreshing(true);
-
+  
     try {
-      // First attempt: Try to fetch from API
-      try {
-        console.log("Fetching users from backend API...");
-        
-        // Get headers from the auth context
-        const headers = getAuthHeaders();
-        console.log("Using auth headers:", headers);
-        
-        const response = await fetch("http://localhost:8080/api/admin/users", {
-          method: "GET",
-          headers: headers
-        });
-
-        // Check if response is ok
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API Error Response:", errorText);
-          throw new Error(`Failed to fetch users: ${response.status}`);
+      // For development mode, use direct API call without CORS issues
+      const apiUrl = '/api/admin/users'; // This will be proxied by setupProxy.js
+      console.log("Fetching users from:", apiUrl);
+      
+      const headers = getAuthHeaders();
+      console.log("Using auth headers:", headers);
+      
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: headers
+      });
+  
+      if (!response.ok) {
+        // Handle unauthorized specifically
+        if (response.status === 401) {
+          throw new Error("Authentication required. Please log in.");
         }
-
-        const data = await response.json();
-        console.log("Users fetched successfully:", data);
-        setUsers(data || []);
-        setError(null);
-        return; // Exit early if successful
-      } catch (apiError) {
-        console.error("API fetch error:", apiError);
-        throw apiError; // Re-throw to be caught by outer try-catch
+        throw new Error(`Failed to fetch users: ${response.status}`);
       }
+  
+      const data = await response.json();
+      console.log("Users fetched successfully:", data);
+      setUsers(data || []);
+      setError(null);
+      setUsingLocalStorage(false);
     } catch (err) {
-      console.error("Error fetching users:", err);
-      
-      // Fallback: Use mock data or localStorage data
-      console.log("Falling back to mock/localStorage data");
-      
-      // Check if we have stored users in localStorage
-      const storedUsers = localStorage.getItem("adminUsers");
-      if (storedUsers) {
-        try {
-          const parsedUsers = JSON.parse(storedUsers);
-          setUsers(parsedUsers);
-          setError(`Could not connect to backend API. Using stored data instead. (${err.message})`);
-        } catch (parseError) {
-          console.error("Error parsing stored users:", parseError);
-          setUsers([]);
-          setError(`Failed to load users. (${err.message})`);
-        }
-      } else {
-        // Create default admin user if no users exist
-        const defaultUsers = [
-          {
-            id: 1,
-            username: "admin",
-            email: "admin@example.com",
-            role: "ADMIN"
-          }
-        ];
-        localStorage.setItem("adminUsers", JSON.stringify(defaultUsers));
-        setUsers(defaultUsers);
-        setError(`Could not connect to backend API. Using default data. (${err.message})`);
-      }
+      console.error("API fetch error:", err);
+      setError(`Error fetching users: ${err.message}. Please try again later.`);
+      setUsers([]);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
+  }, [getAuthHeaders]); // Add getAuthHeaders as dependency
+
+  // The rest of the file remains unchanged...
+
+  // Helper function to create default users if none exist
+  const createAndUseDefaultUsers = () => {
+    const defaultUsers = [
+      {
+        id: 1,
+        username: "admin",
+        email: "admin@example.com",
+        role: "ADMIN"
+      },
+      {
+        id: 2,
+        username: "mat1",
+        email: "mat1@test.com",
+        role: "ADMIN"
+      }
+    ];
+    localStorage.setItem("adminUsers", JSON.stringify(defaultUsers));
+    setUsers(defaultUsers);
+    setError("Could not connect to backend API. Using default data.");
   };
 
   // Open user edit modal
@@ -204,9 +196,11 @@ export default function UserManagement() {
     setModalError("");
 
     try {
-      // Get headers
-      const headers = getAuthHeaders();
-      console.log("Using auth headers for user update:", headers);
+      // If already using local storage, don't attempt API calls
+      if (usingLocalStorage) {
+        handleLocalStorageUpdate();
+        return;
+      }
 
       // Prepare request body
       const requestBody = {
@@ -219,21 +213,17 @@ export default function UserManagement() {
           : {})
       };
 
-      console.log("Preparing request body:", requestBody);
-
       // Determine correct API endpoint based on operation
       const url = modalMode === "create"
-        ? "http://localhost:8080/api/admin/users" // User creation endpoint
-        : `http://localhost:8080/api/admin/users/${currentUser.id}`; // User update endpoint
+        ? "/api/admin/users"
+        : `/api/admin/users/${currentUser.id}`;
 
-      console.log(`Sending ${modalMode === "create" ? "POST" : "PUT"} request to: ${url}`);
-      
       // Make the API request
       const response = await fetch(url, {
         method: modalMode === "create" ? "POST" : "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...headers
+          ...getAuthHeaders()
         },
         body: JSON.stringify(requestBody)
       });
@@ -252,9 +242,8 @@ export default function UserManagement() {
       }
 
       // Parse successful response
-      const responseData = await response.json().catch(() => ({}));
-      console.log("API Response:", responseData);
-
+      await response.json();
+      
       // Update UI
       setShowModal(false);
       setError(`User ${modalMode === "create" ? "created" : "updated"} successfully`);
@@ -266,53 +255,57 @@ export default function UserManagement() {
       setTimeout(() => setError(null), 3000);
     } catch (err) {
       console.error("Error saving user:", err);
-      setModalError(`Failed to ${modalMode} user: ${err.message}`);
       
-      // Fallback to localStorage for demo/development
-      if (!window.confirm(`API request failed. Would you like to update the local storage for demonstration purposes?`)) {
+      // If API fails, offer localStorage fallback
+      if (window.confirm(`API request failed. Would you like to update the local storage for demonstration purposes?`)) {
+        handleLocalStorageUpdate();
+      } else {
+        setModalError(`Failed to ${modalMode} user: ${err.message}`);
         setModalLoading(false);
-        return;
       }
+    }
+  };
+
+  // Helper function to update localStorage
+  const handleLocalStorageUpdate = () => {
+    try {
+      // Update localStorage for demo purposes
+      const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
       
-      try {
-        // Fallback: Update localStorage for demo purposes
-        console.log("Falling back to localStorage update");
-        const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
+      if (modalMode === "create") {
+        // Create new user in localStorage
+        const newUser = {
+          id: storedUsers.length > 0 ? Math.max(...storedUsers.map(u => u.id)) + 1 : 1,
+          username: userForm.username,
+          email: userForm.email || null,
+          role: userForm.admin ? "ADMIN" : "USER"
+        };
         
-        if (modalMode === "create") {
-          // Create new user in localStorage
-          const newUser = {
-            id: storedUsers.length > 0 ? Math.max(...storedUsers.map(u => u.id)) + 1 : 1,
+        storedUsers.push(newUser);
+      } else {
+        // Update existing user in localStorage
+        const userIndex = storedUsers.findIndex(u => u.id === currentUser.id);
+        if (userIndex !== -1) {
+          storedUsers[userIndex] = {
+            ...storedUsers[userIndex],
             username: userForm.username,
             email: userForm.email || null,
             role: userForm.admin ? "ADMIN" : "USER"
           };
-          
-          storedUsers.push(newUser);
-        } else {
-          // Update existing user in localStorage
-          const userIndex = storedUsers.findIndex(u => u.id === currentUser.id);
-          if (userIndex !== -1) {
-            storedUsers[userIndex] = {
-              ...storedUsers[userIndex],
-              username: userForm.username,
-              email: userForm.email || null,
-              role: userForm.admin ? "ADMIN" : "USER"
-            };
-          }
         }
-        
-        localStorage.setItem("adminUsers", JSON.stringify(storedUsers));
-        setUsers(storedUsers);
-        
-        // Close modal and show success message
-        setShowModal(false);
-        setError(`User ${modalMode === "create" ? "created" : "updated"} in localStorage (Demo mode)`);
-        setTimeout(() => setError(null), 3000);
-      } catch (storageError) {
-        console.error("Error updating localStorage:", storageError);
-        setModalError(`Failed to update user in localStorage: ${storageError.message}`);
       }
+      
+      localStorage.setItem("adminUsers", JSON.stringify(storedUsers));
+      setUsers(storedUsers);
+      setUsingLocalStorage(true);
+      
+      // Close modal and show success message
+      setShowModal(false);
+      setError(`User ${modalMode === "create" ? "created" : "updated"} in localStorage (Demo mode)`);
+      setTimeout(() => setError(null), 3000);
+    } catch (storageError) {
+      console.error("Error updating localStorage:", storageError);
+      setModalError(`Failed to update user in localStorage: ${storageError.message}`);
     } finally {
       setModalLoading(false);
     }
@@ -323,23 +316,21 @@ export default function UserManagement() {
     if (!userToDelete) return;
 
     try {
-      // Get headers
-      const headers = getAuthHeaders();
-      console.log("Using auth headers for user deletion:", headers);
+      // If already using localStorage, don't attempt API call
+      if (usingLocalStorage) {
+        handleLocalStorageDelete();
+        return;
+      }
       
-      console.log(`Sending DELETE request to: http://localhost:8080/api/admin/users/${userToDelete.id}`);
-      
-      // Make the API request
-      const response = await fetch(`http://localhost:8080/api/admin/users/${userToDelete.id}`, {
+      // Make API request to delete user
+      const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
         method: "DELETE",
-        headers: headers
+        headers: getAuthHeaders()
       });
 
-      // Handle response
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("API Delete Error:", errorText);
-        throw new Error(`Failed to delete user: ${response.status}`);
+        throw new Error(`Failed to delete user: ${response.status} ${errorText}`);
       }
 
       // Show success message
@@ -352,23 +343,12 @@ export default function UserManagement() {
       setTimeout(() => setError(null), 3000);
     } catch (err) {
       console.error("Error deleting user:", err);
-      setError(`Failed to delete user: ${err.message}`);
       
-      // Fallback to localStorage for demo/development
+      // If API fails, offer localStorage fallback
       if (window.confirm(`API request failed. Would you like to delete from local storage for demonstration purposes?`)) {
-        try {
-          // Fallback: Delete from localStorage for demo purposes
-          console.log("Falling back to localStorage deletion");
-          const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
-          const updatedUsers = storedUsers.filter(u => u.id !== userToDelete.id);
-          localStorage.setItem("adminUsers", JSON.stringify(updatedUsers));
-          setUsers(updatedUsers);
-          setError("User deleted from localStorage (Demo mode)");
-          setTimeout(() => setError(null), 3000);
-        } catch (storageError) {
-          console.error("Error updating localStorage:", storageError);
-          setError(`Failed to delete user from localStorage: ${storageError.message}`);
-        }
+        handleLocalStorageDelete();
+      } else {
+        setError(`Failed to delete user: ${err.message}`);
       }
     } finally {
       setShowDeleteModal(false);
@@ -376,7 +356,22 @@ export default function UserManagement() {
     }
   };
 
-  // Fetch data on component mount
+  // Helper function to delete from localStorage
+  const handleLocalStorageDelete = () => {
+    try {
+      const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
+      const updatedUsers = storedUsers.filter(u => u.id !== userToDelete.id);
+      localStorage.setItem("adminUsers", JSON.stringify(updatedUsers));
+      setUsers(updatedUsers);
+      setUsingLocalStorage(true);
+      setError("User deleted from localStorage (Demo mode)");
+      setTimeout(() => setError(null), 3000);
+    } catch (storageError) {
+      console.error("Error updating localStorage:", storageError);
+      setError(`Failed to delete user from localStorage: ${storageError.message}`);
+    }
+  };
+
   useEffect(() => {
     // Only fetch if user is authenticated
     if (isAuthenticated()) {
@@ -385,7 +380,7 @@ export default function UserManagement() {
       setError("You must be logged in to view this content");
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchUsers]);
 
   // Filter users based on search term
   const filteredUsers = users.filter(
@@ -446,6 +441,12 @@ export default function UserManagement() {
             onClose={() => setError(null)}
           >
             {error}
+          </Alert>
+        )}
+        
+        {usingLocalStorage && (
+          <Alert variant="info" className="mb-3">
+            <strong>Using Local Storage Mode:</strong> Changes are only stored in your browser and will not persist to the server.
           </Alert>
         )}
 

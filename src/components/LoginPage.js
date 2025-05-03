@@ -1,248 +1,189 @@
-// src/components/LoginPage.js
-import React, { useState, useContext, useEffect } from 'react';
+// src/components/LoginPage.js - Enhanced for better authentication flow
+
+import React, { useState, useContext, useEffect } from "react";
 import {
-    Container,
-    Card,
-    Form,
-    Button,
-    InputGroup,
-    Modal,
-    Alert,
-    Spinner
-} from 'react-bootstrap';
-import { FaEye, FaEyeSlash, FaSignInAlt } from 'react-icons/fa';
-import { AuthContext } from './AuthContext';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AuthService } from '../services/AuthService';
-import './AuthForms.css';
+  Container,
+  Card,
+  Form,
+  Button,
+  InputGroup,
+  Alert,
+  Spinner,
+} from "react-bootstrap";
+import { FaEye, FaEyeSlash, FaSignInAlt, FaShoppingCart } from "react-icons/fa";
+import { AuthContext } from "./AuthContext";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import "./AuthForms.css";
 
 const LoginPage = () => {
-    const { login, error: contextError, logout, isAuthenticated } = useContext(AuthContext);
-    const navigate = useNavigate();
-    const location = useLocation();
-    
-    // Get the redirect path from location state, default to home
-    const from = location.state?.from || '/';
-    
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPass, setShowPass] = useState(false);
-    const [validated, setValidated] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+  const {
+    login,
+    error: contextError,
+    logout,
+    isAuthenticated,
+    authRequired,
+  } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    // Forgot-password modal
-    const [showModal, setShowModal] = useState(false);
-    const [resetEmail, setResetEmail] = useState('');
-    const [resetSent, setResetSent] = useState(false);
-    const [resetError, setResetError] = useState('');
-    const [resetLoading, setResetLoading] = useState(false);
+  // Get the redirect path from location state, default to home
+  const from = location.state?.from || "/";
 
-    // Redirect if already logged in
-    useEffect(() => {
-        if (isAuthenticated()) {
-            navigate(from, { replace: true });
-        }
-    }, [isAuthenticated, navigate, from]);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [validated, setValidated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setError('');
-        
-        const form = e.currentTarget;
-        if (!form.checkValidity()) {
-            setValidated(true);
-            return;
-        }
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated()) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
 
-        setIsLoading(true);
-        
-        try {
-            // First ensure we're logged out to clear any previous state
-            logout();
-            
-            // Use the login function from AuthContext with API integration
-            const success = await login(username.trim(), password);
-            
-            if (!success) {
-                throw new Error(contextError || 'Login failed. Please check your credentials.');
-            }
-            
-            // Reset form fields on success
-            setUsername('');
-            setPassword('');
-            setValidated(false);
-            
-            // Navigate to the original destination or home
-            navigate(from, { replace: true });
-        } catch (err) {
-            console.error('Login error:', err);
-            setError(err.message || 'Invalid username or password');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setError("");
 
-    const handleReset = async (e) => {
-        e.preventDefault();
-        setResetError('');
-        setResetLoading(true);
-        
-        try {
-            // Use our AuthService to handle password reset
-            await AuthService.forgotPassword(resetEmail);
-            
-            // Always show success for security (don't reveal if email exists)
-            setResetSent(true);
-        } catch (err) {
-            // Still show success even on error for security
-            setResetSent(true);
-            console.error('Error requesting password reset:', err);
-        } finally {
-            setResetLoading(false);
-        }
-    };
+    const form = e.currentTarget;
+    if (!form.checkValidity()) {
+      setValidated(true);
+      return;
+    }
 
-    return (
-        <Container className="auth-container">
-            <Card className="auth-card shadow-sm">
-                <Card.Body>
-                    <h3 className="mb-4 text-center">Welcome Back</h3>
-                    
-                    {error && (
-                        <Alert variant="danger" className="mb-3">
-                            <strong>Login Error:</strong> {error}
-                        </Alert>
-                    )}
-                    
-                    <Form noValidate validated={validated} onSubmit={handleSubmit}>
-                        <Form.Group controlId="loginUsername" className="mb-3">
-                            <Form.Label>Username</Form.Label>
-                            <Form.Control
-                                required
-                                type="text"
-                                placeholder="Enter username"
-                                value={username}
-                                onChange={e => setUsername(e.target.value)}
-                                disabled={isLoading}
-                            />
-                            <Form.Control.Feedback type="invalid">
-                                Please enter your username.
-                            </Form.Control.Feedback>
-                        </Form.Group>
+    setIsLoading(true);
 
-                        <Form.Group controlId="loginPassword" className="mb-3">
-                            <Form.Label>Password</Form.Label>
-                            <InputGroup>
-                                <Form.Control
-                                    required
-                                    type={showPass ? 'text' : 'password'}
-                                    placeholder="Enter password"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    disabled={isLoading}
-                                />
-                                <Button
-                                    variant="outline-secondary"
-                                    onClick={() => setShowPass(!showPass)}
-                                    disabled={isLoading}
-                                >
-                                    {showPass ? <FaEyeSlash /> : <FaEye />}
-                                </Button>
-                                <Form.Control.Feedback type="invalid">
-                                    Please enter your password.
-                                </Form.Control.Feedback>
-                            </InputGroup>
-                        </Form.Group>
+    try {
+      // First ensure we're logged out to clear any previous state
+      logout();
 
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                            <Button 
-                                type="submit" 
-                                variant="primary"
-                                disabled={isLoading}
-                                className="d-flex align-items-center"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Spinner as="span" animation="border" size="sm" className="me-2" />
-                                        Logging in...
-                                    </>
-                                ) : (
-                                    <>
-                                        <FaSignInAlt className="me-2" />
-                                        Log In
-                                    </>
-                                )}
-                            </Button>
-                            <Button
-                                variant="link"
-                                onClick={() => { setShowModal(true); setResetSent(false); setResetError(''); }}
-                                disabled={isLoading}
-                            >
-                                Forgot password?
-                            </Button>
-                        </div>
+      console.log(`Attempting login with: ${username}`);
 
-                        <div className="text-center">
-                            <small>
-                                Don't have an account? <Link to="/register">Register</Link>
-                            </small>
-                        </div>
-                    </Form>
-                </Card.Body>
-            </Card>
+      // Attempt login via context method
+      const success = await login(username, password);
 
-            {/* Forgot Password Modal */}
-            <Modal centered show={showModal} onHide={() => setShowModal(false)}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Reset Password</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {resetSent ? (
-                        <Alert variant="success">
-                            If that email exists, a reset link has been sent.
-                        </Alert>
-                    ) : (
-                        <>
-                            {resetError && (
-                                <Alert variant="danger">
-                                    {resetError}
-                                </Alert>
-                            )}
-                            <Form onSubmit={handleReset}>
-                                <Form.Group controlId="resetEmail" className="mb-3">
-                                    <Form.Label>Email Address</Form.Label>
-                                    <Form.Control
-                                        required
-                                        type="email"
-                                        placeholder="you@example.com"
-                                        value={resetEmail}
-                                        onChange={e => setResetEmail(e.target.value)}
-                                        disabled={resetLoading}
-                                    />
-                                </Form.Group>
-                                <Button 
-                                    type="submit" 
-                                    variant="primary"
-                                    disabled={resetLoading}
-                                >
-                                    {resetLoading ? (
-                                        <>
-                                            <Spinner as="span" animation="border" size="sm" className="me-2" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        'Send Reset Link'
-                                    )}
-                                </Button>
-                            </Form>
-                        </>
-                    )}
-                </Modal.Body>
-            </Modal>
-        </Container>
-    );
+      if (success) {
+        // Navigate to original destination or home
+        console.log("Login successful, redirecting to", from);
+        navigate(from, { replace: true });
+      } else {
+        throw new Error("Login failed. Please check your credentials.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError(err.message || "Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Container className="auth-container">
+      {authRequired && (
+        <Alert variant="info" className="mb-4 text-center">
+          <FaShoppingCart className="me-2" size={20} />
+          <strong>Authentication Required</strong>
+          <p className="mb-0 mt-2">
+            Please log in to view products and make purchases.
+          </p>
+        </Alert>
+      )}
+
+      <Card className="auth-card shadow-sm">
+        <Card.Body>
+          <h3 className="mb-4 text-center">Welcome Back</h3>
+
+          {error && (
+            <Alert variant="danger" className="mb-3">
+              <strong>Login Error:</strong> {error}
+            </Alert>
+          )}
+
+          {contextError && error !== contextError && (
+            <Alert variant="danger" className="mb-3">
+              <strong>Error:</strong> {contextError}
+            </Alert>
+          )}
+
+          <Form noValidate validated={validated} onSubmit={handleSubmit}>
+            <Form.Group controlId="loginUsername" className="mb-3">
+              <Form.Label>Username</Form.Label>
+              <Form.Control
+                required
+                type="text"
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading}
+              />
+              <Form.Control.Feedback type="invalid">
+                Please enter your username.
+              </Form.Control.Feedback>
+            </Form.Group>
+
+            <Form.Group controlId="loginPassword" className="mb-3">
+              <Form.Label>Password</Form.Label>
+              <InputGroup>
+                <Form.Control
+                  required
+                  type={showPass ? "text" : "password"}
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => setShowPass(!showPass)}
+                  disabled={isLoading}
+                >
+                  {showPass ? <FaEyeSlash /> : <FaEye />}
+                </Button>
+                <Form.Control.Feedback type="invalid">
+                  Please enter your password.
+                </Form.Control.Feedback>
+              </InputGroup>
+            </Form.Group>
+
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isLoading}
+                className="d-flex align-items-center"
+              >
+                {isLoading ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      className="me-2"
+                    />
+                    Logging in...
+                  </>
+                ) : (
+                  <>
+                    <FaSignInAlt className="me-2" />
+                    Log In
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="text-center">
+              <small>
+                Don't have an account? <Link to="/register">Register</Link>
+              </small>
+            </div>
+          </Form>
+        </Card.Body>
+      </Card>
+    </Container>
+  );
 };
 
 export default LoginPage;
