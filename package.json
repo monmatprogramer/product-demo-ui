@@ -8,6 +8,8 @@
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.7",
     "axios": "^1.6.2",
     "bootstrap": "^5.3.2",
     "http-proxy-middleware": "^2.0.6",
@@ -18,6 +20,7 @@
     "react-router-dom": "^6.20.1",
     "react-scripts": "5.0.1",
     "recharts": "^2.10.3",
+    "scheduler": "^0.23.2",
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
