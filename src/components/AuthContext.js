@@ -38,13 +38,15 @@ export const AuthProvider = ({ children }) => {
       console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
 
       // Make a direct API call to get products (should be public)
-      const productsData = await safeJsonFetch("/api/products", {
+      const productsData = await safeJsonFetch("/products", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
 
       if (Array.isArray(productsData)) {
-        console.log(`Products fetched successfully: ${productsData.length} items`);
+        console.log(
+          `Products fetched successfully: ${productsData.length} items`
+        );
         setProducts(productsData);
         setError(null);
       } else {
@@ -54,16 +56,19 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
-      
+
       // Check if it's an authentication error
-      if (error.message.includes("401") || error.message.includes("unauthorized")) {
+      if (
+        error.message.includes("401") ||
+        error.message.includes("unauthorized")
+      ) {
         console.log("Products endpoint requires authentication");
         setAuthRequired(true);
         setError("Authentication required to view products");
       } else {
         setError(formatApiError(error));
       }
-      
+
       setProducts([]);
     } finally {
       setLoading(false);
@@ -87,19 +92,21 @@ export const AuthProvider = ({ children }) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Login failed: ${response.status}`);
+        throw new Error(
+          errorData.message || `Login failed: ${response.status}`
+        );
       }
 
       // Get authentication data from response
       const authData = await response.json();
-      
+
       // Extract token from response
       const receivedToken = authData.token || authData.accessToken;
-      
+
       if (!receivedToken) {
         throw new Error("No token received from server");
       }
-      
+
       // Extract user information
       const userData = {
         username: authData.username || username,
@@ -185,19 +192,21 @@ export const AuthProvider = ({ children }) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Registration failed: ${response.status}`);
+        throw new Error(
+          errorData.message || `Registration failed: ${response.status}`
+        );
       }
 
       // Get authentication data from response
       const authData = await response.json();
-      
+
       // Extract token from response
       const receivedToken = authData.token || authData.accessToken;
-      
+
       if (!receivedToken) {
         throw new Error("No token received from server");
       }
-      
+
       // Create user data object
       const userObject = {
         username: userData.username,
@@ -246,7 +255,9 @@ export const AuthProvider = ({ children }) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Profile update failed: ${response.status}`);
+        throw new Error(
+          errorData.message || `Profile update failed: ${response.status}`
+        );
       }
 
       // Get updated user data
