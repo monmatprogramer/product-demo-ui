@@ -47,7 +47,7 @@ export async function safeJsonFetch(url, options = {}) {
   let fetchUrl = normalizedUrl;
   if (process.env.NODE_ENV === "production") {
     const apiBase =
-      "https://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+      "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
     // Remove /api prefix if it exists to avoid duplication
     const path = normalizedUrl.startsWith("/api/")
       ? normalizedUrl
