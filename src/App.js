@@ -31,13 +31,14 @@ import ProductsAdmin from "./components/admin/ProductsAdmin";
 import UserManagement from "./components/admin/UserManagement";
 import Reports from "./components/admin/Reports";
 import Analytics from "./components/admin/Analytics";
-import MyComponent from './components/MyComponent';
-import { testApiConnection } from './utils/apiUtils';
+import { testApiConnection } from "./utils/apiUtils";
 
+// Test API connection on startup
 testApiConnection();
 
 function AppContent() {
-  const { products, loading, error, authRequired, isAuthenticated } = useContext(AuthContext);
+  const { products, loading, error, authRequired, isAuthenticated } =
+    useContext(AuthContext);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [sortOrder, setSortOrder] = useState("");
@@ -50,7 +51,7 @@ function AppContent() {
     if (!Array.isArray(products) || products.length === 0) {
       return ["All"];
     }
-    
+
     const setCats = new Set(["All"]);
     products.forEach((p) => {
       if (p && p.name) {
@@ -69,7 +70,7 @@ function AppContent() {
     if (!Array.isArray(products)) {
       return [];
     }
-    
+
     let arr =
       category === "All"
         ? products
@@ -83,16 +84,16 @@ function AppContent() {
             }
             return false;
           });
-    
+
     if (query) {
-      arr = arr.filter((p) =>
-        p && p.name && p.name.toLowerCase().includes(query.toLowerCase())
+      arr = arr.filter(
+        (p) => p && p.name && p.name.toLowerCase().includes(query.toLowerCase())
       );
     }
-    
+
     if (sortOrder === "asc") arr.sort((a, b) => a.price - b.price);
     if (sortOrder === "desc") arr.sort((a, b) => b.price - a.price);
-    
+
     return arr;
   }, [products, category, query, sortOrder]);
 
@@ -107,12 +108,18 @@ function AppContent() {
       />
 
       <main className="flex-grow-1">
-        {error && !authRequired && (
+        {error && !error.includes("Using demo") && !authRequired && (
           <Container className="mt-3">
             <Alert variant="danger">{error}</Alert>
           </Container>
         )}
-        
+
+        {error && error.includes("Using demo") && (
+          <Container className="mt-3">
+            <Alert variant="warning">{error}</Alert>
+          </Container>
+        )}
+
         <Routes>
           <Route
             path="/"
@@ -150,15 +157,20 @@ function AppContent() {
             }
           />
 
-          <Route 
-            path="/product/:id" 
+          <Route
+            path="/product/:id"
             element={
-              authRequired && !isAuthenticated() ? 
-              <Navigate to="/login" state={{ from: window.location.pathname }} /> : 
-              <ProductDetail />
-            } 
+              authRequired && !isAuthenticated() ? (
+                <Navigate
+                  to="/login"
+                  state={{ from: window.location.pathname }}
+                />
+              ) : (
+                <ProductDetail />
+              )
+            }
           />
-          
+
           <Route path="/cart" element={<CartPage />} />
           <Route
             path="/admin"
@@ -225,7 +237,7 @@ function AppContent() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      
+
       <Footer />
     </div>
   );
