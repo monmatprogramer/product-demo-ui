@@ -1,26 +1,6 @@
 // src/utils/apiUtils.js
 
 /**
- * Determines the appropriate API base URL based on the current environment and protocol
- * @returns {string} The base URL for API calls
- */
-function getApiBaseUrl() {
-  const apiDomain = "product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
-  
-  // If we're in a browser, match the protocol (http/https) with what the frontend is using
-  if (typeof window !== 'undefined') {
-    // Get the protocol that the frontend is currently using
-    const frontendProtocol = window.location.protocol;
-    // Use the same protocol for backend calls to prevent mixed content issues
-    // But since your backend is currently only on HTTP, we'll keep it for now
-    return `http://${apiDomain}`;
-  }
-  
-  // Default to http for non-browser environments
-  return `http://${apiDomain}`;
-}
-
-/**
  * Handles API errors in a standardized way
  *
  * @param {Error} error - The error to format
@@ -43,7 +23,7 @@ export function formatApiError(error) {
   }
 
   // Special handling for CORS errors
-  if (error.message.includes("CORS") || error.message.includes("cross-origin")) {
+  if (error.message.includes("CORS")) {
     return "CORS error: The API server isn't configured to accept requests from this domain.";
   }
 
@@ -66,34 +46,42 @@ export async function safeJsonFetch(url, options = {}) {
   // Create the correct URL based on environment
   let fetchUrl = normalizedUrl;
   if (process.env.NODE_ENV === "production") {
-    const apiBase = getApiBaseUrl();
-    // Remove /api prefix if it exists to avoid duplication
+    // SOLUTION: Use CORS proxy to bypass mixed content issue
+    // This allows HTTPS -> HTTP requests by proxying through a CORS proxy
+    const apiPath = "product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+    
+    // Use a CORS proxy service (this is a public service - for production use your own)
+    const corsProxyUrl = "https://corsproxy.io/?";
+    
+    // Encode the full URL to the API endpoint
     const path = normalizedUrl.startsWith("/api/")
       ? normalizedUrl
       : `/api${normalizedUrl}`;
-    fetchUrl = `${apiBase}${path}`;
+    
+    const encodedApiUrl = encodeURIComponent(`http://${apiPath}${path}`);
+    fetchUrl = `${corsProxyUrl}${encodedApiUrl}`;
+    
+    console.log(`Using CORS proxy: ${fetchUrl}`);
   }
 
   try {
     console.log(`Fetching data from: ${fetchUrl}`);
 
-    // Enhanced fetch options for CORS support
+    // For production with the proxy, we need these specific settings
     const fetchOptions = {
       ...options,
-      // Always use cors mode for consistent behavior
       mode: 'cors',
-      // Add credentials for cookies/auth if needed
-      credentials: 'include',
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        // Origin-specific headers to help with CORS
-        ...(typeof window !== 'undefined' ? {
-          "X-Requested-With": "XMLHttpRequest"
-        } : {}),
         ...options.headers,
       },
     };
+
+    // Note: We don't use credentials with the proxy
+    if (process.env.NODE_ENV !== "production") {
+      fetchOptions.credentials = 'include';
+    }
 
     const response = await fetch(fetchUrl, fetchOptions);
 
@@ -109,7 +97,7 @@ export async function safeJsonFetch(url, options = {}) {
         // If JSON error response
         const errorData = await response.json();
         throw new Error(
-          errorData.message || errorData.error || `Server error: ${response.status}`
+          errorData.message || `Server error: ${response.status}`
         );
       } else {
         // If non-JSON error (like HTML)
@@ -161,51 +149,14 @@ export async function safeJsonFetch(url, options = {}) {
     // Enhance error message for common deployment issues
     if (
       error.message.includes("Failed to fetch") ||
-      error.message.includes("NetworkError") ||
-      error.message.includes("blocked by CORS policy")
+      error.message.includes("NetworkError")
     ) {
-      // Test if it's a CORS issue
-      const corsError = 
-        error.message.includes("CORS") || 
-        error.message.includes("cross-origin") ||
-        (typeof window !== 'undefined' && 
-         window.location.protocol === 'https:' && 
-         fetchUrl.includes('http:'));
-         
-      if (corsError) {
-        console.error("CORS issue detected, see browser console for details");
-        throw new Error(
-          `CORS error: The API server isn't configured to accept requests from this domain. Please check your backend CORS configuration.`
-        );
-      } else {
-        throw new Error(
-          `Network error: Could not connect to the API server. Check if the server is running and accessible.`
-        );
-      }
+      throw new Error(
+        `Network error: Could not connect to the API server. Check if CORS is enabled on your backend.`
+      );
     }
 
     // If it's a more specific error from our code above, pass it through
     throw error;
-  }
-}
-
-/**
- * Tests the CORS configuration by making a simple request to the CORS test endpoint
- * @returns {Promise<Object>} The CORS test response or error information
- */
-export async function testCorsConfiguration() {
-  try {
-    const response = await safeJsonFetch('/api/cors-test');
-    return {
-      success: true,
-      message: 'CORS is properly configured',
-      details: response
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: formatApiError(error),
-      error: error.message
-    };
   }
 }
