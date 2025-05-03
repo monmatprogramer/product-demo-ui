@@ -42,16 +42,19 @@ export function formatApiError(error) {
 export async function safeJsonFetch(url, options = {}) {
   // Ensure URL starts with / for consistency
   const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
-  
+
   // Create the correct URL based on environment
   let fetchUrl = normalizedUrl;
   if (process.env.NODE_ENV === "production") {
-    const apiBase = "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+    const apiBase =
+      "https://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
     // Remove /api prefix if it exists to avoid duplication
-    const path = normalizedUrl.startsWith("/api/") ? normalizedUrl : `/api${normalizedUrl}`;
+    const path = normalizedUrl.startsWith("/api/")
+      ? normalizedUrl
+      : `/api${normalizedUrl}`;
     fetchUrl = `${apiBase}${path}`;
   }
-  
+
   try {
     console.log(`Fetching data from: ${fetchUrl}`);
 
@@ -87,7 +90,9 @@ export async function safeJsonFetch(url, options = {}) {
         const truncatedError =
           errorText.substring(0, 150) + (errorText.length > 150 ? "..." : "");
         throw new Error(
-          `Server error ${response.status}: ${response.statusText || truncatedError}`
+          `Server error ${response.status}: ${
+            response.statusText || truncatedError
+          }`
         );
       }
     }
