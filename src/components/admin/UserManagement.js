@@ -59,20 +59,20 @@ export default function UserManagement() {
     setLoading(true);
     setError(null);
     setIsRefreshing(true);
-  
+
     try {
       // For development mode, use direct API call without CORS issues
-      const apiUrl = '/api/admin/users'; // This will be proxied by setupProxy.js
+      const apiUrl = "/api/admin/users"; // This will be proxied by setupProxy.js
       console.log("Fetching users from:", apiUrl);
-      
+
       const headers = getAuthHeaders();
       console.log("Using auth headers:", headers);
-      
+
       const response = await fetch(apiUrl, {
         method: "GET",
-        headers: headers
+        headers: headers,
       });
-  
+
       if (!response.ok) {
         // Handle unauthorized specifically
         if (response.status === 401) {
@@ -80,7 +80,7 @@ export default function UserManagement() {
         }
         throw new Error(`Failed to fetch users: ${response.status}`);
       }
-  
+
       const data = await response.json();
       console.log("Users fetched successfully:", data);
       setUsers(data || []);
@@ -99,25 +99,6 @@ export default function UserManagement() {
   // The rest of the file remains unchanged...
 
   // Helper function to create default users if none exist
-  const createAndUseDefaultUsers = () => {
-    const defaultUsers = [
-      {
-        id: 1,
-        username: "admin",
-        email: "admin@example.com",
-        role: "ADMIN"
-      },
-      {
-        id: 2,
-        username: "mat1",
-        email: "mat1@test.com",
-        role: "ADMIN"
-      }
-    ];
-    localStorage.setItem("adminUsers", JSON.stringify(defaultUsers));
-    setUsers(defaultUsers);
-    setError("Could not connect to backend API. Using default data.");
-  };
 
   // Open user edit modal
   const handleEditUser = (user) => {
@@ -210,22 +191,23 @@ export default function UserManagement() {
         // Only include password if creating or changing password
         ...(modalMode === "create" || userForm.password
           ? { password: userForm.password }
-          : {})
+          : {}),
       };
 
       // Determine correct API endpoint based on operation
-      const url = modalMode === "create"
-        ? "/api/admin/users"
-        : `/api/admin/users/${currentUser.id}`;
+      const url =
+        modalMode === "create"
+          ? "/api/admin/users"
+          : `/api/admin/users/${currentUser.id}`;
 
       // Make the API request
       const response = await fetch(url, {
         method: modalMode === "create" ? "POST" : "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...getAuthHeaders()
+          ...getAuthHeaders(),
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
       // Handle response
@@ -233,7 +215,8 @@ export default function UserManagement() {
         let errorMessage;
         try {
           const errorData = await response.json();
-          errorMessage = errorData.message || `Server error: ${response.status}`;
+          errorMessage =
+            errorData.message || `Server error: ${response.status}`;
         } catch (jsonError) {
           const errorText = await response.text();
           errorMessage = errorText || `Server error: ${response.status}`;
@@ -243,21 +226,27 @@ export default function UserManagement() {
 
       // Parse successful response
       await response.json();
-      
+
       // Update UI
       setShowModal(false);
-      setError(`User ${modalMode === "create" ? "created" : "updated"} successfully`);
-      
+      setError(
+        `User ${modalMode === "create" ? "created" : "updated"} successfully`
+      );
+
       // Refresh user list
       fetchUsers();
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setError(null), 3000);
     } catch (err) {
       console.error("Error saving user:", err);
-      
+
       // If API fails, offer localStorage fallback
-      if (window.confirm(`API request failed. Would you like to update the local storage for demonstration purposes?`)) {
+      if (
+        window.confirm(
+          `API request failed. Would you like to update the local storage for demonstration purposes?`
+        )
+      ) {
         handleLocalStorageUpdate();
       } else {
         setModalError(`Failed to ${modalMode} user: ${err.message}`);
@@ -270,42 +259,53 @@ export default function UserManagement() {
   const handleLocalStorageUpdate = () => {
     try {
       // Update localStorage for demo purposes
-      const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
-      
+      const storedUsers = JSON.parse(
+        localStorage.getItem("adminUsers") || "[]"
+      );
+
       if (modalMode === "create") {
         // Create new user in localStorage
         const newUser = {
-          id: storedUsers.length > 0 ? Math.max(...storedUsers.map(u => u.id)) + 1 : 1,
+          id:
+            storedUsers.length > 0
+              ? Math.max(...storedUsers.map((u) => u.id)) + 1
+              : 1,
           username: userForm.username,
           email: userForm.email || null,
-          role: userForm.admin ? "ADMIN" : "USER"
+          role: userForm.admin ? "ADMIN" : "USER",
         };
-        
+
         storedUsers.push(newUser);
       } else {
         // Update existing user in localStorage
-        const userIndex = storedUsers.findIndex(u => u.id === currentUser.id);
+        const userIndex = storedUsers.findIndex((u) => u.id === currentUser.id);
         if (userIndex !== -1) {
           storedUsers[userIndex] = {
             ...storedUsers[userIndex],
             username: userForm.username,
             email: userForm.email || null,
-            role: userForm.admin ? "ADMIN" : "USER"
+            role: userForm.admin ? "ADMIN" : "USER",
           };
         }
       }
-      
+
       localStorage.setItem("adminUsers", JSON.stringify(storedUsers));
       setUsers(storedUsers);
       setUsingLocalStorage(true);
-      
+
       // Close modal and show success message
       setShowModal(false);
-      setError(`User ${modalMode === "create" ? "created" : "updated"} in localStorage (Demo mode)`);
+      setError(
+        `User ${
+          modalMode === "create" ? "created" : "updated"
+        } in localStorage (Demo mode)`
+      );
       setTimeout(() => setError(null), 3000);
     } catch (storageError) {
       console.error("Error updating localStorage:", storageError);
-      setModalError(`Failed to update user in localStorage: ${storageError.message}`);
+      setModalError(
+        `Failed to update user in localStorage: ${storageError.message}`
+      );
     } finally {
       setModalLoading(false);
     }
@@ -321,31 +321,37 @@ export default function UserManagement() {
         handleLocalStorageDelete();
         return;
       }
-      
+
       // Make API request to delete user
       const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
         method: "DELETE",
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to delete user: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to delete user: ${response.status} ${errorText}`
+        );
       }
 
       // Show success message
       setError("User deleted successfully");
-      
+
       // Refresh user list
       fetchUsers();
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setError(null), 3000);
     } catch (err) {
       console.error("Error deleting user:", err);
-      
+
       // If API fails, offer localStorage fallback
-      if (window.confirm(`API request failed. Would you like to delete from local storage for demonstration purposes?`)) {
+      if (
+        window.confirm(
+          `API request failed. Would you like to delete from local storage for demonstration purposes?`
+        )
+      ) {
         handleLocalStorageDelete();
       } else {
         setError(`Failed to delete user: ${err.message}`);
@@ -359,8 +365,10 @@ export default function UserManagement() {
   // Helper function to delete from localStorage
   const handleLocalStorageDelete = () => {
     try {
-      const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
-      const updatedUsers = storedUsers.filter(u => u.id !== userToDelete.id);
+      const storedUsers = JSON.parse(
+        localStorage.getItem("adminUsers") || "[]"
+      );
+      const updatedUsers = storedUsers.filter((u) => u.id !== userToDelete.id);
       localStorage.setItem("adminUsers", JSON.stringify(updatedUsers));
       setUsers(updatedUsers);
       setUsingLocalStorage(true);
@@ -368,7 +376,9 @@ export default function UserManagement() {
       setTimeout(() => setError(null), 3000);
     } catch (storageError) {
       console.error("Error updating localStorage:", storageError);
-      setError(`Failed to delete user from localStorage: ${storageError.message}`);
+      setError(
+        `Failed to delete user from localStorage: ${storageError.message}`
+      );
     }
   };
 
@@ -436,17 +446,24 @@ export default function UserManagement() {
       <Card.Body>
         {error && (
           <Alert
-            variant={error.includes("success") ? "success" : error.includes("Could not connect") ? "warning" : "danger"}
+            variant={
+              error.includes("success")
+                ? "success"
+                : error.includes("Could not connect")
+                ? "warning"
+                : "danger"
+            }
             dismissible
             onClose={() => setError(null)}
           >
             {error}
           </Alert>
         )}
-        
+
         {usingLocalStorage && (
           <Alert variant="info" className="mb-3">
-            <strong>Using Local Storage Mode:</strong> Changes are only stored in your browser and will not persist to the server.
+            <strong>Using Local Storage Mode:</strong> Changes are only stored
+            in your browser and will not persist to the server.
           </Alert>
         )}
 
