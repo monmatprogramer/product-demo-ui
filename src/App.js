@@ -32,6 +32,9 @@ import UserManagement from "./components/admin/UserManagement";
 import Reports from "./components/admin/Reports";
 import Analytics from "./components/admin/Analytics";
 import MyComponent from './components/MyComponent';
+import { testApiConnection } from './utils/apiUtils';
+
+testApiConnection();
 
 function AppContent() {
   const { products, loading, error, authRequired, isAuthenticated } = useContext(AuthContext);
