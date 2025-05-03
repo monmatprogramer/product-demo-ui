@@ -17,7 +17,8 @@ export async function safeJsonFetch(url, options = {}) {
   
       const response = await fetch(normalizedUrl, {
         ...options,
-        credentials: "include",
+        // Don't include credentials by default - this can cause CORS issues
+        credentials: options.credentials || "same-origin",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -97,90 +98,4 @@ export async function safeJsonFetch(url, options = {}) {
       // If it's a more specific error from our code above, pass it through
       throw error;
     }
-  }
-  
-  /**
-   * Handles API errors in a standardized way
-   *
-   * @param {Error} error - The error to format
-   * @returns {string} - A user-friendly error message
-   */
-  export function formatApiError(error) {
-    // Special handling for auth errors
-    if (error.message.includes("401") || error.message.includes("unauthorized")) {
-      return "Authentication error: Please log in again.";
-    }
-  
-    // Special handling for forbidden access
-    if (error.message.includes("403") || error.message.includes("forbidden")) {
-      return "Access denied: You don't have permission to access this resource.";
-    }
-  
-    // Special handling for server errors
-    if (error.message.includes("500") || error.message.includes("Server error")) {
-      return "Server error: The server encountered an issue. Please try again later.";
-    }
-  
-    // Special handling for CORS errors
-    if (error.message.includes("CORS")) {
-      return "CORS error: The API server isn't configured to accept requests from this domain.";
-    }
-  
-    // Default error message
-    return error.message || "An unexpected error occurred. Please try again.";
-  }
-  
-  /**
-   * Helper function to test API connection
-   * Useful for debugging deployment issues
-   */
-  export async function testApiConnection() {
-    console.group("🔍 API Connection Test");
-  
-    try {
-      console.log(`Testing connection to API at: /api/products`);
-  
-      // Make request with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-  
-      const response = await fetch('/api/products', {
-        signal: controller.signal,
-        headers: {
-          Accept: "application/json",
-        },
-      });
-  
-      clearTimeout(timeoutId);
-  
-      console.log(`Response status: ${response.status} ${response.statusText}`);
-      console.log(`Response type: ${response.headers.get("content-type")}`);
-  
-      if (response.ok) {
-        console.log("✅ API connection successful!");
-  
-        // Check response type
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const data = await response.json();
-          console.log(
-            `Received ${Array.isArray(data) ? data.length : "non-array"} response`
-          );
-        } else {
-          console.warn(`⚠️ Response is not JSON: ${contentType}`);
-          const text = await response.text();
-          console.log(`Response preview: ${text.substring(0, 100)}...`);
-        }
-      } else {
-        console.error("❌ API request failed with status:", response.status);
-      }
-    } catch (error) {
-      console.error("❌ API connection test failed:", error);
-  
-      if (error.name === "AbortError") {
-        console.error("Request timed out after 10 seconds");
-      }
-    }
-  
-    console.groupEnd();
   }

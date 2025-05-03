@@ -10,24 +10,36 @@ module.exports = function (app) {
     createProxyMiddleware({
       target: apiUrl,
       changeOrigin: true,
+      secure: false, // Accept insecure (HTTP) connections
+      pathRewrite: { "^/api": "/api" }, // Keep the /api prefix
       logLevel: "debug",
-      // Fix CORS issues by setting these headers
+      // Important: Don't send credentials by default
+      withCredentials: false,
+      // Handle request setup
       onProxyReq: (proxyReq, req) => {
         // Log the path being proxied
         console.log(`Proxying request: ${req.method} ${req.url}`);
-
-        // Set custom headers if needed
-        proxyReq.setHeader('Origin', apiUrl);
+        
+        // Don't set Origin header as it might interfere with CORS
+        // Instead, let changeOrigin handle this
+        
+        // Make the URL logging more visible in dev tools
+        console.log(`📡 Proxy: ${req.method} ${apiUrl}${req.url}`);
       },
       // Log proxy response activity
       onProxyRes: (proxyRes, req, res) => {
         console.log(
-          `API Response: ${req.method} ${req.url} => ${proxyRes.statusCode}`
+          `📥 API Response: ${req.method} ${req.url} => ${proxyRes.statusCode}`
         );
+        
+        // Log response headers for debugging
+        if (proxyRes.statusCode !== 200) {
+          console.log('Response headers:', proxyRes.headers);
+        }
       },
       // Handle proxy errors
       onError: (err, req, res) => {
-        console.error("Proxy error:", err);
+        console.error("❌ Proxy error:", err);
 
         // Send a structured error response
         res.writeHead(500, {
