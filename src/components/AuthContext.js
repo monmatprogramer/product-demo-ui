@@ -1,7 +1,13 @@
 // src/components/AuthContext.js
 import React, { createContext, useState, useEffect, useCallback } from "react";
+import { safeJsonFetch, formatApiError } from "../utils/apiUtils";
 
 export const AuthContext = createContext();
+
+// Define API base URL - same approach as in apiUtils.js
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com'
+  : '';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -27,74 +33,78 @@ export const AuthProvider = ({ children }) => {
       : { "Content-Type": "application/json" };
   };
 
-  // Fetch products - Modified to handle authentication requirement
+  // Fetch products with proper error handling for production
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       setAuthRequired(false);
-      const url = "/api/products";
-
-      console.log("Fetching products from:", url);
-
+      
+      // Log the environment and URL being used
+      console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
+      
       // First try without auth headers
-      let response = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
-
-      // If we get 401, try again with auth headers if token exists
-      if (response.status === 401) {
-        console.log("Products endpoint requires authentication");
-        setAuthRequired(true);
+      try {
+        const productsData = await safeJsonFetch('/api/products', {
+          method: "GET",
+          headers: { "Content-Type": "application/json" }
+        });
         
-        const token = localStorage.getItem("token");
-        if (token) {
-          console.log("Token found, retrying with authentication");
-          response = await fetch(url, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
-            }
-          });
+        if (Array.isArray(productsData)) {
+          console.log(`Products fetched successfully: ${productsData.length} items`);
+          setProducts(productsData);
+          setError(null);
         } else {
-          console.log("No authentication token available");
-          throw new Error("Authentication required to view products");
+          console.warn("API did not return an array for products:", productsData);
+          setProducts([]);
+          setError("Received invalid data format for products.");
+        }
+      } catch (error) {
+        // Check if the error is due to authentication requirement
+        if (error.message.includes('401') || error.message.includes('unauthorized')) {
+          console.log("Products endpoint requires authentication");
+          setAuthRequired(true);
+          
+          const token = localStorage.getItem("token");
+          if (token) {
+            console.log("Token found, retrying with authentication");
+            try {
+              const productsData = await safeJsonFetch('/api/products', {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`
+                }
+              });
+              
+              if (Array.isArray(productsData)) {
+                setProducts(productsData);
+                setError(null);
+              } else {
+                setProducts([]);
+                setError("Received invalid data format for products.");
+              }
+            } catch (authError) {
+              console.error("Failed to fetch products with auth:", authError);
+              setProducts([]);
+              setError(formatApiError(authError));
+            }
+          } else {
+            console.log("No authentication token available");
+            setProducts([]);
+            setError("Authentication required to view products");
+          }
+        } else {
+          // Handle other types of errors
+          console.error("Failed to fetch products:", error);
+          setProducts([]);
+          setError(formatApiError(error));
         }
       }
-
-      console.log("Products API response status:", response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API Error Response:", errorText);
-        throw new Error(
-          `HTTP error! status: ${response.status} - ${
-            errorText || "Failed to fetch"
-          }`
-        );
-      }
-
-      const data = await response.json();
-      console.log("Products fetched:", data);
-
-      if (Array.isArray(data)) {
-        setProducts(data);
-        setError(null);
-      } else {
-        console.warn("API did not return an array for products:", data);
-        setProducts([]);
-        setError("Received invalid data format for products.");
-      }
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-      setProducts([]);
-      setError(error.message || "Failed to fetch products. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, []); // Keep dependencies empty if it doesn't rely on external state/props
+  }, []); 
 
   // Login function
   const login = async (username, password) => {
@@ -104,29 +114,14 @@ export const AuthProvider = ({ children }) => {
   
       console.log("Attempting login for user:", username);
       
-      // Make the login request
-      const response = await fetch('/api/auth/login', {
+      // Make the login request using safeJsonFetch
+      const data = await safeJsonFetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password })
       });
-      
-      if (!response.ok) {
-        // Handle error response
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || `Login failed with status: ${response.status}`;
-        } catch (e) {
-          errorMessage = `Login failed with status: ${response.status}`;
-        }
-        throw new Error(errorMessage);
-      }
-  
-      // Parse successful response
-      const data = await response.json();
       
       // Store the authentication token
       if (data.token) {
@@ -153,7 +148,7 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || 'Login failed. Please try again.');
+      setError(formatApiError(error));
       return false;
     } finally {
       setLoading(false);
@@ -200,12 +195,99 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [fetchProducts]);
 
+  // Register function
+  const register = async (userData) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log("Attempting to register user:", userData.username);
+      
+      const data = await safeJsonFetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+      });
+      
+      // If registration was successful and returns a token, login the user
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        
+        // Create and store user data
+        const newUserData = {
+          username: userData.username,
+          isAdmin: data.role === 'ADMIN',
+          role: data.role || 'USER'
+        };
+        
+        localStorage.setItem('user', JSON.stringify(newUserData));
+        
+        // Update state
+        setUser(newUserData);
+        setToken(data.token);
+        
+        // Fetch products after login
+        fetchProducts();
+        
+        return true;
+      }
+      
+      return true; // Registration successful but no auto-login
+    } catch (error) {
+      console.error('Registration error:', error);
+      setError(formatApiError(error));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update profile function
+  const updateProfile = async (profileData) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Only proceed if authenticated
+      if (!isAuthenticated()) {
+        throw new Error("You must be logged in to update your profile");
+      }
+      
+      const data = await safeJsonFetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(profileData)
+      });
+      
+      // Update user data in state and localStorage
+      const updatedUser = {
+        ...user,
+        ...profileData,
+      };
+      
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      return true;
+    } catch (error) {
+      console.error('Profile update error:', error);
+      setError(formatApiError(error));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Context value
   const contextValue = {
     user,
     token,
     login,
     logout,
+    register,
+    updateProfile,
     isAuthenticated,
     getAuthHeaders,
     loading,
