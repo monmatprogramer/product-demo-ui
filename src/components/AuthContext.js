@@ -1,7 +1,6 @@
 // src/components/AuthContext.js
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import { safeJsonFetch, formatApiError } from "../utils/apiUtils";
-import { fetchProductsDirect } from "../utils/directApiConnector";
 
 export const AuthContext = createContext();
 
@@ -38,200 +37,34 @@ export const AuthProvider = ({ children }) => {
 
       console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
 
-      // First try without auth headers
-      try {
-        const productsData = await safeJsonFetch("/api/products", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+      // Make a direct API call to get products (should be public)
+      const productsData = await safeJsonFetch("/api/products", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
-        if (Array.isArray(productsData)) {
-          console.log(
-            `Products fetched successfully: ${productsData.length} items`
-          );
-          setProducts(productsData);
-          setError(null);
-          return; // Exit early on success
-        } else {
-          console.warn(
-            "API did not return an array for products, trying direct connection"
-          );
-
-          // Try direct connection as fallback
-          const directData = await fetchProductsDirect();
-          if (Array.isArray(directData) && directData.length > 0) {
-            console.log(
-              `Direct API connection successful: ${directData.length} items`
-            );
-            setProducts(directData);
-            setError(
-              "Used direct API connection. Consider updating your proxy configuration."
-            );
-            return; // Exit after successful direct connection
-          }
-
-          // If both methods failed, use mock data
-          const mockProducts = [
-            {
-              id: 43,
-              name: "Gaming Laptop",
-              description: "Powerful specs for AAA titles",
-              price: 1899.99,
-              imageUrl:
-                "https://i.pcmag.com/imagery/reviews/02s3fhQvs6Nz0FQvkQOdmrO-1.fit_lim.size_320x180.v1717007069.jpg",
-            },
-            {
-              id: 44,
-              name: "Mechanical Keyboard",
-              description: "RGB backlit, blue switches",
-              price: 129.5,
-              imageUrl:
-                "https://cdn.mos.cms.futurecdn.net/AxP8PJXgYVW96hANpNJPXNM-650-80.jpeg.webp",
-            },
-            {
-              id: 45,
-              name: "Camo Keycap",
-              description: "Stunning camo keycap design",
-              price: 34.0,
-              imageUrl:
-                "https://www.dakeyboard.com/images/deltaforce/5/bascamp/front.png",
-            },
-          ];
-          setProducts(mockProducts);
-          setError("Could not connect to product API. Using demo products.");
-        }
-      } catch (error) {
-        // If there's an error, check if it's authentication related
-        if (
-          error.message.includes("401") ||
-          error.message.includes("unauthorized")
-        ) {
-          console.log("Products endpoint requires authentication");
-          setAuthRequired(true);
-
-          const token = localStorage.getItem("token");
-          if (token) {
-            console.log("Token found, retrying with authentication");
-            try {
-              const productsData = await safeJsonFetch("/api/products", {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-              });
-
-              if (Array.isArray(productsData)) {
-                setProducts(productsData);
-                setError(null);
-              } else {
-                // Try direct connection with authentication
-                const directData = await fetchProductsDirect();
-                if (Array.isArray(directData) && directData.length > 0) {
-                  console.log(
-                    `Direct API connection successful: ${directData.length} items`
-                  );
-                  setProducts(directData);
-                  setError(
-                    "Used direct API connection. Consider updating your proxy configuration."
-                  );
-                  return;
-                }
-
-                // Use mock data if both methods fail
-                const mockProducts = [
-                  {
-                    id: 43,
-                    name: "Gaming Laptop",
-                    description: "Powerful specs for AAA titles",
-                    price: 1899.99,
-                    imageUrl:
-                      "https://i.pcmag.com/imagery/reviews/02s3fhQvs6Nz0FQvkQOdmrO-1.fit_lim.size_320x180.v1717007069.jpg",
-                  },
-                  {
-                    id: 44,
-                    name: "Mechanical Keyboard",
-                    description: "RGB backlit, blue switches",
-                    price: 129.5,
-                    imageUrl:
-                      "https://cdn.mos.cms.futurecdn.net/AxP8PJXgYVW96hANpNJPXNM-650-80.jpeg.webp",
-                  },
-                  {
-                    id: 45,
-                    name: "Camo Keycap",
-                    description: "Stunning camo keycap design",
-                    price: 34.0,
-                    imageUrl:
-                      "https://www.dakeyboard.com/images/deltaforce/5/bascamp/front.png",
-                  },
-                ];
-                setProducts(mockProducts);
-                setError(
-                  "Received invalid data format from API. Using demo products."
-                );
-              }
-            } catch (authError) {
-              console.error("Failed to fetch products with auth:", authError);
-              setProducts([]);
-              setError(formatApiError(authError));
-            }
-          } else {
-            console.log("No authentication token available");
-            setProducts([]);
-            setError("Authentication required to view products");
-          }
-        } else {
-          // Try direct connection for other errors
-          try {
-            console.log("Trying direct API connection as fallback...");
-            const directData = await fetchProductsDirect();
-            if (Array.isArray(directData) && directData.length > 0) {
-              console.log(
-                `Direct API connection successful: ${directData.length} items`
-              );
-              setProducts(directData);
-              setError(
-                "Used direct API connection. Consider updating your proxy configuration."
-              );
-              return;
-            }
-          } catch (directError) {
-            console.error("Direct connection also failed:", directError);
-          }
-
-          // Handle other types of errors
-          console.error("Failed to fetch products:", error);
-          // Use mock products for demo
-          const mockProducts = [
-            {
-              id: 43,
-              name: "Gaming Laptop",
-              description: "Powerful specs for AAA titles",
-              price: 1899.99,
-              imageUrl:
-                "https://i.pcmag.com/imagery/reviews/02s3fhQvs6Nz0FQvkQOdmrO-1.fit_lim.size_320x180.v1717007069.jpg",
-            },
-            {
-              id: 44,
-              name: "Mechanical Keyboard",
-              description: "RGB backlit, blue switches",
-              price: 129.5,
-              imageUrl:
-                "https://cdn.mos.cms.futurecdn.net/AxP8PJXgYVW96hANpNJPXNM-650-80.jpeg.webp",
-            },
-            {
-              id: 45,
-              name: "Camo Keycap",
-              description: "Stunning camo keycap design",
-              price: 34.0,
-              imageUrl:
-                "https://www.dakeyboard.com/images/deltaforce/5/bascamp/front.png",
-            },
-          ];
-          setProducts(mockProducts);
-          setError("Could not connect to product API. Using demo products.");
-        }
+      if (Array.isArray(productsData)) {
+        console.log(`Products fetched successfully: ${productsData.length} items`);
+        setProducts(productsData);
+        setError(null);
+      } else {
+        console.error("API did not return an array for products");
+        setProducts([]);
+        setError("Invalid data format received from API");
       }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      
+      // Check if it's an authentication error
+      if (error.message.includes("401") || error.message.includes("unauthorized")) {
+        console.log("Products endpoint requires authentication");
+        setAuthRequired(true);
+        setError("Authentication required to view products");
+      } else {
+        setError(formatApiError(error));
+      }
+      
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -245,23 +78,42 @@ export const AuthProvider = ({ children }) => {
 
       console.log("Attempting login for user:", username);
 
-      // For demo purposes, implement a mock login
-      // In a real app, you would use the API
-      const mockUser = {
-        username: username,
-        isAdmin: username === "admin",
-        role: username === "admin" ? "ADMIN" : "USER",
+      // Make actual API call to login endpoint
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Login failed: ${response.status}`);
+      }
+
+      // Get authentication data from response
+      const authData = await response.json();
+      
+      // Extract token from response
+      const receivedToken = authData.token || authData.accessToken;
+      
+      if (!receivedToken) {
+        throw new Error("No token received from server");
+      }
+      
+      // Extract user information
+      const userData = {
+        username: authData.username || username,
+        isAdmin: authData.role === "ADMIN",
+        role: authData.role || "USER",
       };
 
-      const mockToken = "mock-jwt-token-" + Date.now();
-
       // Store auth data
-      localStorage.setItem("token", mockToken);
-      localStorage.setItem("user", JSON.stringify(mockUser));
+      localStorage.setItem("token", receivedToken);
+      localStorage.setItem("user", JSON.stringify(userData));
 
       // Update state
-      setUser(mockUser);
-      setToken(mockToken);
+      setUser(userData);
+      setToken(receivedToken);
 
       // Fetch products after login
       await fetchProducts();
@@ -324,25 +176,44 @@ export const AuthProvider = ({ children }) => {
 
       console.log("Attempting to register user:", userData.username);
 
-      // For demo purposes, implement a mock registration
-      // In a real app, you would use the API
-      const mockUser = {
+      // Make actual API call to register endpoint
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Registration failed: ${response.status}`);
+      }
+
+      // Get authentication data from response
+      const authData = await response.json();
+      
+      // Extract token from response
+      const receivedToken = authData.token || authData.accessToken;
+      
+      if (!receivedToken) {
+        throw new Error("No token received from server");
+      }
+      
+      // Create user data object
+      const userObject = {
         username: userData.username,
-        isAdmin: false,
-        role: "USER",
+        isAdmin: authData.role === "ADMIN",
+        role: authData.role || "USER",
       };
 
-      const mockToken = "mock-jwt-token-" + Date.now();
-
       // Store auth data
-      localStorage.setItem("token", mockToken);
-      localStorage.setItem("user", JSON.stringify(mockUser));
+      localStorage.setItem("token", receivedToken);
+      localStorage.setItem("user", JSON.stringify(userObject));
 
       // Update state
-      setUser(mockUser);
-      setToken(mockToken);
+      setUser(userObject);
+      setToken(receivedToken);
 
-      // Fetch products after login
+      // Fetch products after registration
       await fetchProducts();
 
       return true;
@@ -366,13 +237,28 @@ export const AuthProvider = ({ children }) => {
         throw new Error("You must be logged in to update your profile");
       }
 
-      // For demo purposes, implement a mock profile update
-      // In a real app, you would use the API
+      // Make actual API call to update profile
+      const response = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Profile update failed: ${response.status}`);
+      }
+
+      // Get updated user data
+      const updatedUserData = await response.json();
+
+      // Create updated user object
       const updatedUser = {
         ...user,
-        ...profileData,
+        ...updatedUserData,
       };
 
+      // Update state and localStorage
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
 

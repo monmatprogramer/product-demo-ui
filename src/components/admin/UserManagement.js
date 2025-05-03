@@ -20,6 +20,7 @@ import {
   FaEyeSlash,
   FaSearch,
 } from "react-icons/fa";
+import { safeJsonFetch } from "../../utils/apiUtils";
 
 export default function UserManagement() {
   // Get auth context with proper functions
@@ -51,7 +52,7 @@ export default function UserManagement() {
   // Delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [usingLocalStorage, setUsingLocalStorage] = useState(false);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
 
   // Function to fetch users data with authentication
   const fetchUsers = useCallback(async () => {
@@ -61,85 +62,51 @@ export default function UserManagement() {
     setIsRefreshing(true);
 
     try {
-      // Check if token exists in localStorage
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Authentication required. Please log in.");
-      }
+      // Get auth headers
+      const headers = getAuthHeaders();
 
-      console.log("Token found, attempting to fetch users...");
-      
-      // For development mode, use direct API call without CORS issues
-      const apiUrl = "/api/admin/users"; // This will be proxied by setupProxy.js
-      console.log("Fetching users from:", apiUrl);
+      console.log("Fetching users with auth headers...");
 
-      // First try with proxy
-      try {
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-        });
+      // Make API call to get users
+      const usersData = await safeJsonFetch("/api/admin/users", {
+        method: "GET",
+        headers,
+      });
 
-        if (!response.ok) {
-          // Handle unauthorized specifically
-          if (response.status === 401) {
-            throw new Error("Authentication required. Please log in.");
-          }
-          throw new Error(`Failed to fetch users: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Users fetched successfully:", data);
-        setUsers(data || []);
+      if (Array.isArray(usersData)) {
+        console.log(`Users fetched successfully: ${usersData.length} users`);
+        setUsers(usersData);
         setError(null);
-        setUsingLocalStorage(false);
-        return; // Exit early on success
-      } catch (proxyError) {
-        console.error("Proxy fetch failed:", proxyError);
-        
-        // Continue with fallback to localStorage mock data
-        console.log("Using local storage mock data...");
-        
-        // Create mock users for demo purposes
-        const mockUsers = [
-          {
-            id: 1,
-            username: "admin",
-            email: "admin@example.com",
-            role: "ADMIN"
-          },
-          {
-            id: 2,
-            username: "user1",
-            email: "user1@example.com",
-            role: "USER"
-          },
-          {
-            id: 3,
-            username: "user2",
-            email: "user2@example.com",
-            role: "USER"
-          }
-        ];
-        
-        // Store in localStorage for future use
-        localStorage.setItem("adminUsers", JSON.stringify(mockUsers));
-        setUsers(mockUsers);
-        setUsingLocalStorage(true);
-        setError("Using local mock data for demonstration purposes.");
+        setUsingFallbackData(false);
+      } else {
+        console.error("API did not return an array for users");
+        throw new Error("Invalid data format received from API");
       }
     } catch (err) {
       console.error("Error fetching users:", err);
       setError(err.message || "An error occurred while fetching users");
-      setUsers([]);
+
+      // If API call fails, create minimal fallback data for development
+      if (process.env.NODE_ENV === "development") {
+        console.log("Using fallback user data for development");
+        const fallbackUsers = [
+          {
+            id: 1,
+            username: "admin",
+            email: "admin@example.com",
+            role: "ADMIN",
+          },
+        ];
+        setUsers(fallbackUsers);
+        setUsingFallbackData(true);
+      } else {
+        setUsers([]);
+      }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [getAuthHeaders]);
 
   // Open user edit modal
   const handleEditUser = (user) => {
@@ -218,52 +185,75 @@ export default function UserManagement() {
     setModalError("");
 
     try {
-      // Using localStorage for demo
-      // Get current users
-      const storedUsers = localStorage.getItem("adminUsers");
-      let adminUsers = storedUsers ? JSON.parse(storedUsers) : [];
+      // Skip API calls if using fallback data
+      if (usingFallbackData) {
+        console.log("Using fallback data - API calls skipped");
+        setTimeout(() => {
+          setShowModal(false);
+          setError(
+            `Simulated user ${
+              modalMode === "create" ? "creation" : "update"
+            } (API not available)`
+          );
+          setTimeout(() => setError(null), 3000);
+          setModalLoading(false);
+        }, 1000);
+        return;
+      }
 
-      // Check if username already exists for new users
-      if (
-        modalMode === "create" &&
-        adminUsers.some((u) => u.username === userForm.username)
-      ) {
-        throw new Error("Username already exists");
+      // Get auth headers
+      const headers = getAuthHeaders();
+
+      // Prepare request payload
+      const userData = {
+        username: userForm.username,
+        email: userForm.email || null,
+        role: userForm.admin ? "ADMIN" : "USER",
+      };
+
+      // Add password if provided
+      if (userForm.password) {
+        userData.password = userForm.password;
       }
 
       if (modalMode === "create") {
-        // Create new user
-        const newUser = {
-          id:
-            adminUsers.length > 0
-              ? Math.max(...adminUsers.map((u) => u.id)) + 1
-              : 1,
-          username: userForm.username,
-          email: userForm.email,
-          role: userForm.admin ? "ADMIN" : "USER",
-        };
-
-        adminUsers.push(newUser);
-      } else {
-        // Update existing user
-        adminUsers = adminUsers.map((user) => {
-          if (user.id === currentUser.id) {
-            return {
-              ...user,
-              username: userForm.username,
-              email: userForm.email,
-              role: userForm.admin ? "ADMIN" : "USER",
-            };
-          }
-          return user;
+        // Create new user via API
+        const response = await fetch("/api/admin/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...headers,
+          },
+          body: JSON.stringify(userData),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to create user: ${response.status}`
+          );
+        }
+      } else {
+        // Update existing user via API
+        const response = await fetch(`/api/admin/users/${currentUser.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...headers,
+          },
+          body: JSON.stringify(userData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to update user: ${response.status}`
+          );
+        }
       }
 
-      // Save to local storage
-      localStorage.setItem("adminUsers", JSON.stringify(adminUsers));
-
-      // Update state
-      setUsers(adminUsers);
+      // Fetch updated user list
+      await fetchUsers();
 
       // Close modal
       setShowModal(false);
@@ -289,18 +279,36 @@ export default function UserManagement() {
     if (!userToDelete) return;
 
     try {
-      // Get current users
-      const storedUsers = localStorage.getItem("adminUsers");
-      let adminUsers = storedUsers ? JSON.parse(storedUsers) : [];
+      // Skip API calls if using fallback data
+      if (usingFallbackData) {
+        console.log("Using fallback data - API calls skipped");
+        setTimeout(() => {
+          setShowDeleteModal(false);
+          setUserToDelete(null);
+          setError("Simulated user deletion (API not available)");
+          setTimeout(() => setError(null), 3000);
+        }, 1000);
+        return;
+      }
 
-      // Filter out deleted user
-      adminUsers = adminUsers.filter((user) => user.id !== userToDelete.id);
+      // Get auth headers
+      const headers = getAuthHeaders();
 
-      // Save to local storage
-      localStorage.setItem("adminUsers", JSON.stringify(adminUsers));
+      // Delete user via API
+      const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
+        method: "DELETE",
+        headers,
+      });
 
-      // Update state
-      setUsers(adminUsers);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to delete user: ${response.status}`
+        );
+      }
+
+      // Fetch updated user list
+      await fetchUsers();
 
       // Show success message
       setError("User deleted successfully");
@@ -382,11 +390,9 @@ export default function UserManagement() {
             variant={
               error.includes("success")
                 ? "success"
-                : error.includes("mock data") 
-                  ? "info"
-                : error.includes("Could not connect")
-                  ? "warning"
-                  : "danger"
+                : error.includes("Simulated")
+                ? "info"
+                : "danger"
             }
             dismissible
             onClose={() => setError(null)}
@@ -395,10 +401,10 @@ export default function UserManagement() {
           </Alert>
         )}
 
-        {usingLocalStorage && (
-          <Alert variant="info" className="mb-3">
-            <strong>Using Local Storage Mode:</strong> Changes are only stored
-            in your browser and will not persist to the server.
+        {usingFallbackData && (
+          <Alert variant="warning" className="mb-3">
+            <strong>Using fallback data:</strong> Unable to connect to API. Some
+            functionality will be limited.
           </Alert>
         )}
 
