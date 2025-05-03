@@ -1,117 +1,211 @@
-// apiUtils.js - Frontend utility to handle API requests
+// src/utils/apiUtils.js
 
-// Base API URL - automatically adjusts based on the frontend protocol
-const API_BASE_URL = (() => {
-  const apiDomain =
-    "product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
-
-  // If frontend is on HTTPS but backend only supports HTTP, you need a proxy
-  // For now, we'll keep using HTTP but this should be addressed for production
+/**
+ * Determines the appropriate API base URL based on the current environment and protocol
+ * @returns {string} The base URL for API calls
+ */
+function getApiBaseUrl() {
+  const apiDomain = "product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+  
+  // If we're in a browser, match the protocol (http/https) with what the frontend is using
+  if (typeof window !== 'undefined') {
+    // Get the protocol that the frontend is currently using
+    const frontendProtocol = window.location.protocol;
+    // Use the same protocol for backend calls to prevent mixed content issues
+    // But since your backend is currently only on HTTP, we'll keep it for now
+    return `http://${apiDomain}`;
+  }
+  
+  // Default to http for non-browser environments
   return `http://${apiDomain}`;
-})();
+}
 
-// Helper function to handle API calls
-async function callApi(endpoint, options = {}) {
+/**
+ * Handles API errors in a standardized way
+ *
+ * @param {Error} error - The error to format
+ * @returns {string} - A user-friendly error message
+ */
+export function formatApiError(error) {
+  // Special handling for auth errors
+  if (error.message.includes("401") || error.message.includes("unauthorized")) {
+    return "Authentication error: Please log in again.";
+  }
+
+  // Special handling for forbidden access
+  if (error.message.includes("403") || error.message.includes("forbidden")) {
+    return "Access denied: You don't have permission to access this resource.";
+  }
+
+  // Special handling for server errors
+  if (error.message.includes("500") || error.message.includes("Server error")) {
+    return "Server error: The server encountered an issue. Please try again later.";
+  }
+
+  // Special handling for CORS errors
+  if (error.message.includes("CORS") || error.message.includes("cross-origin")) {
+    return "CORS error: The API server isn't configured to accept requests from this domain.";
+  }
+
+  // Default error message
+  return error.message || "An unexpected error occurred. Please try again.";
+}
+
+/**
+ * Fetches JSON data with proper error handling for cross-environment deployments
+ *
+ * @param {string} url - The URL path (without the base URL)
+ * @param {Object} options - Fetch options
+ * @returns {Promise<any>} - The parsed JSON data or null for empty responses
+ * @throws {Error} - If the fetch fails
+ */
+export async function safeJsonFetch(url, options = {}) {
+  // Ensure URL starts with / for consistency
+  const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
+
+  // Create the correct URL based on environment
+  let fetchUrl = normalizedUrl;
+  if (process.env.NODE_ENV === "production") {
+    const apiBase = getApiBaseUrl();
+    // Remove /api prefix if it exists to avoid duplication
+    const path = normalizedUrl.startsWith("/api/")
+      ? normalizedUrl
+      : `/api${normalizedUrl}`;
+    fetchUrl = `${apiBase}${path}`;
+  }
+
   try {
-    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`Fetching data from: ${fetchUrl}`);
 
-    // Default options
-    const defaultOptions = {
+    // Enhanced fetch options for CORS support
+    const fetchOptions = {
+      ...options,
+      // Always use cors mode for consistent behavior
+      mode: 'cors',
+      // Add credentials for cookies/auth if needed
+      credentials: 'include',
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
+        // Origin-specific headers to help with CORS
+        ...(typeof window !== 'undefined' ? {
+          "X-Requested-With": "XMLHttpRequest"
+        } : {}),
+        ...options.headers,
       },
-      credentials: "include", // For cookies if used
-      mode: "cors", // Explicitly set CORS mode
     };
 
-    // Add authorization header if token exists
-    const token = localStorage.getItem("token");
-    if (token) {
-      defaultOptions.headers["Authorization"] = `Bearer ${token}`;
+    const response = await fetch(fetchUrl, fetchOptions);
+
+    // Log response details for debugging
+    console.log(`Response status: ${response.status} ${response.statusText}`);
+
+    // Handle non-success responses
+    if (!response.ok) {
+      // Check content type to better handle errors
+      const contentType = response.headers.get("content-type");
+
+      if (contentType && contentType.includes("application/json")) {
+        // If JSON error response
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || `Server error: ${response.status}`
+        );
+      } else {
+        // If non-JSON error (like HTML)
+        const errorText = await response.text();
+        // Only show the first part of error text to avoid huge HTML responses
+        const truncatedError =
+          errorText.substring(0, 150) + (errorText.length > 150 ? "..." : "");
+        throw new Error(
+          `Server error ${response.status}: ${
+            response.statusText || truncatedError
+          }`
+        );
+      }
     }
 
-    // Merge options
-    const fetchOptions = {
-      ...defaultOptions,
-      ...options,
-      headers: {
-        ...defaultOptions.headers,
-        ...(options.headers || {}),
-      },
-    };
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return null;
+    }
 
-    console.log(`Fetching from: ${url}`);
-    const response = await fetch(url, fetchOptions);
-
-    // Check if response is JSON
+    // Check if response is empty
     const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const data = await response.json();
+    if (!contentType || !contentType.includes("application/json")) {
+      console.warn(`Warning: Expected JSON response but got ${contentType}`);
 
-      // If response is not ok, throw error with response data
-      if (!response.ok) {
-        throw new Error(data.error || "API request failed");
+      // Try to read text response
+      const text = await response.text();
+      if (!text) {
+        return null;
       }
 
-      return data;
-    } else {
-      // Handle non-JSON responses
-      if (!response.ok) {
-        throw new Error("API request failed");
+      // Check if it's JSON anyway
+      try {
+        return JSON.parse(text);
+      } catch (error) {
+        console.error("Failed to parse non-JSON response:", error);
+        throw new Error(
+          `Server returned non-JSON response: ${text.substring(0, 50)}...`
+        );
       }
-
-      return await response.text();
     }
+
+    // Parse JSON response normally
+    return await response.json();
   } catch (error) {
-    console.error("API call failed:", error);
+    // Log details of the error
+    console.error(`API request failed: ${fetchUrl}`, error);
+
+    // Enhance error message for common deployment issues
+    if (
+      error.message.includes("Failed to fetch") ||
+      error.message.includes("NetworkError") ||
+      error.message.includes("blocked by CORS policy")
+    ) {
+      // Test if it's a CORS issue
+      const corsError = 
+        error.message.includes("CORS") || 
+        error.message.includes("cross-origin") ||
+        (typeof window !== 'undefined' && 
+         window.location.protocol === 'https:' && 
+         fetchUrl.includes('http:'));
+         
+      if (corsError) {
+        console.error("CORS issue detected, see browser console for details");
+        throw new Error(
+          `CORS error: The API server isn't configured to accept requests from this domain. Please check your backend CORS configuration.`
+        );
+      } else {
+        throw new Error(
+          `Network error: Could not connect to the API server. Check if the server is running and accessible.`
+        );
+      }
+    }
+
+    // If it's a more specific error from our code above, pass it through
     throw error;
   }
 }
 
-// API helper functions
-const api = {
-  // Products
-  fetchProducts: () => callApi("/api/products"),
-  getProduct: (id) => callApi(`/api/products/${id}`),
-  createProduct: (data) =>
-    callApi("/api/products", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  updateProduct: (id, data) =>
-    callApi(`/api/products/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
-  deleteProduct: (id) =>
-    callApi(`/api/products/${id}`, {
-      method: "DELETE",
-    }),
-
-  // Authentication
-  login: (credentials) =>
-    callApi("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify(credentials),
-    }),
-  register: (userData) =>
-    callApi("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify(userData),
-    }),
-  refreshToken: (refreshToken) =>
-    callApi("/api/auth/refresh-token", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
-    }),
-  logout: () => callApi("/api/auth/logout", { method: "POST" }),
-
-  // User management
-  getCurrentUser: () => callApi("/api/access/current-user"),
-  checkAdmin: () => callApi("/api/access/check-admin"),
-
-  // Testing CORS
-  testCors: () => callApi("/api/cors-test"),
-};
-
-export default api;
+/**
+ * Tests the CORS configuration by making a simple request to the CORS test endpoint
+ * @returns {Promise<Object>} The CORS test response or error information
+ */
+export async function testCorsConfiguration() {
+  try {
+    const response = await safeJsonFetch('/api/cors-test');
+    return {
+      success: true,
+      message: 'CORS is properly configured',
+      details: response
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatApiError(error),
+      error: error.message
+    };
+  }
+}
