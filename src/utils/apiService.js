@@ -1,4 +1,6 @@
 // src/utils/apiService.js
+import API_BASE_URL from './apiConfig';
+
 export const apiService = {
   /**
    * Base request method for all API calls
@@ -9,8 +11,10 @@ export const apiService = {
    */
   async request(endpoint, options = {}, requiresAuth = true) {
     try {
-      // Add /api prefix if not present
-      const url = endpoint.startsWith("/api") ? endpoint : `/api${endpoint}`;
+      // Add /api prefix if not present and construct full URL
+      const url = endpoint.startsWith("/")
+        ? `${API_BASE_URL}${endpoint}`
+        : `${API_BASE_URL}/${endpoint}`;
 
       // Set default headers
       const headers = {

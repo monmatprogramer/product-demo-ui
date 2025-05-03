@@ -2,12 +2,14 @@
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 module.exports = function (app) {
-  console.log("Setting up API proxy to http://localhost:8080");
+  const apiUrl =
+    "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+  console.log(`Setting up API proxy to ${apiUrl}`);
 
   app.use(
     "/api",
     createProxyMiddleware({
-      target: "http://localhost:8080",
+      target: apiUrl,
       changeOrigin: true,
       logLevel: "debug",
       pathRewrite: function (path, req) {
@@ -73,7 +75,7 @@ module.exports = function (app) {
             details: {
               url: req.url,
               method: req.method,
-              target: "http://localhost:8080",
+              target: apiUrl,
             },
           })
         );
