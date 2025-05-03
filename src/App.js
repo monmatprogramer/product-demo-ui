@@ -31,10 +31,7 @@ import ProductsAdmin from "./components/admin/ProductsAdmin";
 import UserManagement from "./components/admin/UserManagement";
 import Reports from "./components/admin/Reports";
 import Analytics from "./components/admin/Analytics";
-import { testApiConnection } from "./utils/apiUtils";
 
-// Test API connection on startup
-testApiConnection();
 
 function AppContent() {
   const { products, loading, error, authRequired, isAuthenticated } =
