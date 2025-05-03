@@ -7,7 +7,7 @@
  */
 const API_BASE_URL =
   process.env.NODE_ENV === "production"
-    ? "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com/api/products"
+    ? "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com"
     : "";
 
 /**
