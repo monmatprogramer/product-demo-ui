@@ -1,5 +1,5 @@
 // src/utils/apiUtils.js
-import API_BASE_URL from './apiConfig';
+import config from '../config';
 
 /**
  * Formats errors into user-friendly messages.
@@ -29,7 +29,8 @@ export async function safeJsonFetch(path, options = {}) {
     normalized = normalized.substring(4);
   }
 
-  const url = `${API_BASE_URL}${normalized}`;
+  // Use centralized config for API URL
+  const url = `${config.api.fullUrl()}${normalized}`;
   console.log(`🔗 Fetching ${url}`, options);
 
   const res = await fetch(url, options);

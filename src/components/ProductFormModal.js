@@ -1,8 +1,10 @@
+// src/components/ProductFormModal.js
 import React, { useState, useEffect, useContext } from 'react';
 import { Modal, Button, Form, Spinner, Alert, InputGroup } from 'react-bootstrap';
 import { FaSave, FaBox, FaDollarSign, FaImage } from 'react-icons/fa';
 import { AuthContext } from './AuthContext';
 import { safeJsonFetch } from '../utils/apiUtils';
+import API_BASE_URL from '../utils/apiConfig';
 
 const ProductFormModal = ({ product, onSaved, onClose, usingFallbackData = false }) => {
     const { getAuthHeaders } = useContext(AuthContext);
@@ -78,9 +80,6 @@ const ProductFormModal = ({ product, onSaved, onClose, usingFallbackData = false
                 return;
             }
             
-            const url = isNew ? '/api/products' : `/api/products/${product.id}`;
-            const method = isNew ? 'POST' : 'PUT';
-            
             // Prepare payload
             const payload = {
                 name: form.name,
@@ -93,26 +92,22 @@ const ProductFormModal = ({ product, onSaved, onClose, usingFallbackData = false
                 payload.imageUrl = form.imageUrl.trim();
             }
             
-            // Get auth headers
-            const headers = getAuthHeaders();
+            // Use safeJsonFetch for API calls
+            let endpoint = isNew ? '/products' : `/products/${product.id}`;
+            const method = isNew ? 'POST' : 'PUT';
             
-            // Use fetch instead of safeJsonFetch for better control over response handling
-            const response = await fetch(url, {
+            console.log(`Making ${method} request to ${endpoint}`, payload);
+            
+            // Make the API call
+            const savedProduct = await safeJsonFetch(endpoint, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...headers
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
             
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `Failed to ${isNew ? 'create' : 'update'} product: ${response.status}`);
-            }
-            
-            const savedProduct = await response.json();
+            console.log('API response:', savedProduct);
             onSaved(savedProduct);
+            
         } catch (err) {
             console.error("Error saving product:", err);
             setError(err.message || `Error ${isNew ? 'creating' : 'updating'} product. Please try again.`);
