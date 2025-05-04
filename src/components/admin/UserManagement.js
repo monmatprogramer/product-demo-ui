@@ -1,4 +1,4 @@
-// src/components/admin/UserManagement.js
+// Modified src/components/admin/UserManagement.js
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import {
@@ -20,6 +20,9 @@ import {
   FaEyeSlash,
   FaSearch,
 } from "react-icons/fa";
+
+// Define API base URL constant at the top of the file
+const API_BASE_URL = "http://54.253.83.201:8080";
 
 export default function UserManagement() {
   // Get auth context with proper functions
@@ -68,7 +71,8 @@ export default function UserManagement() {
         const headers = getAuthHeaders();
         console.log("Using auth headers:", headers);
 
-        const response = await fetch("http://localhost:8080/api/admin/users", {
+        // Updated URL to use API_BASE_URL
+        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
           method: "GET",
           headers: headers,
         });
@@ -226,10 +230,11 @@ export default function UserManagement() {
       console.log("Preparing request body:", requestBody);
 
       // Determine correct API endpoint based on operation
+      // Updated to use API_BASE_URL
       const url =
         modalMode === "create"
-          ? "http://localhost:8080/api/admin/users" // User creation endpoint
-          : `http://localhost:8080/api/admin/users/${currentUser.id}`; // User update endpoint
+          ? `${API_BASE_URL}/api/admin/users` // User creation endpoint
+          : `${API_BASE_URL}/api/admin/users/${currentUser.id}`; // User update endpoint
 
       console.log(
         `Sending ${modalMode === "create" ? "POST" : "PUT"} request to: ${url}`
@@ -354,13 +359,14 @@ export default function UserManagement() {
       const headers = getAuthHeaders();
       console.log("Using auth headers for user deletion:", headers);
 
+      // Updated to use API_BASE_URL
       console.log(
-        `Sending DELETE request to: http://localhost:8080/api/admin/users/${userToDelete.id}`
+        `Sending DELETE request to: ${API_BASE_URL}/api/admin/users/${userToDelete.id}`
       );
 
       // Make the API request
       const response = await fetch(
-        `http://localhost:8080/api/admin/users/${userToDelete.id}`,
+        `${API_BASE_URL}/api/admin/users/${userToDelete.id}`,
         {
           method: "DELETE",
           headers: headers,
