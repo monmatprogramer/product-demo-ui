@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Modal, Button, Form, Spinner, Alert, InputGroup } from 'react-bootstrap';
 import { FaSave, FaBox, FaDollarSign, FaImage } from 'react-icons/fa';
 import { AuthContext } from './AuthContext';
-import { safeJsonFetch } from '../utils/apiUtils';
+
 
 const ProductFormModal = ({ product, onSaved, onClose, usingFallbackData = false }) => {
     const { getAuthHeaders } = useContext(AuthContext);

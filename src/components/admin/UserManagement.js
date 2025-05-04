@@ -178,144 +178,157 @@ export default function UserManagement() {
   };
 
   // Handle form submission
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
+  // Replace your handleFormSubmit function with this improved version
+const handleFormSubmit = async (e) => {
+  e.preventDefault();
 
-    const form = e.currentTarget;
+  const form = e.currentTarget;
 
-    // Validation checks
-    if (modalMode === "create" || userForm.password) {
-      if (userForm.password.length < 6) {
-        setModalError("Password must be at least 6 characters");
-        setValidated(true);
-        return;
-      }
-
-      if (userForm.password !== userForm.confirmPassword) {
-        setModalError("Passwords do not match");
-        setValidated(true);
-        return;
-      }
-    }
-
-    if (!form.checkValidity()) {
+  // Validation checks
+  if (modalMode === "create" || userForm.password) {
+    if (userForm.password.length < 6) {
+      setModalError("Password must be at least 6 characters");
       setValidated(true);
       return;
     }
 
-    setModalLoading(true);
-    setModalError("");
+    if (userForm.password !== userForm.confirmPassword) {
+      setModalError("Passwords do not match");
+      setValidated(true);
+      return;
+    }
+  }
 
-    try {
-      // Prepare request body - key fields the API expects
-      const requestBody = {
-        username: userForm.username,
-        email: userForm.email || "",
-        password: userForm.password,
-        confirmPassword: userForm.confirmPassword,
-        role: userForm.admin ? "ADMIN" : "USER",
-      };
+  if (!form.checkValidity()) {
+    setValidated(true);
+    return;
+  }
 
-      console.log("Preparing request body:", requestBody);
+  setModalLoading(true);
+  setModalError("");
 
-      // Get authentication headers
-      const headers = {
-        "Content-Type": "application/json",
-        ...getAuthHeaders()
-      };
+  try {
+    // Enhanced request body with multiple role formats to ensure compatibility
+    const requestBody = {
+      username: userForm.username,
+      email: userForm.email || "",
+      password: userForm.password || undefined, // Only include if it has a value
+      // Include multiple formats of role information to ensure compatibility
+      role: userForm.admin ? "ADMIN" : "USER",
+      isAdmin: userForm.admin,
+      admin: userForm.admin,
+      // Some APIs expect this format
+      authorities: userForm.admin 
+        ? [{ authority: "ROLE_ADMIN" }] 
+        : [{ authority: "ROLE_USER" }]
+    };
 
-      // Determine endpoint based on create/edit
-      const url = modalMode === "create" 
-        ? `${API_BASE_URL}/admin/users` 
-        : `${API_BASE_URL}/admin/users/${currentUser.id}`;
+    // Remove password field if empty in edit mode
+    if (modalMode === "edit" && !userForm.password) {
+      delete requestBody.password;
+      delete requestBody.confirmPassword;
+    }
 
-      console.log(`Sending ${modalMode === "create" ? "POST" : "PUT"} request to: ${url}`);
+    console.log("Preparing request body:", requestBody);
 
-      // Make the API request
-      const response = await fetch(url, {
-        method: modalMode === "create" ? "POST" : "PUT",
-        headers: headers,
-        body: JSON.stringify(requestBody),
-      });
+    // Get authentication headers
+    const headers = {
+      "Content-Type": "application/json",
+      ...getAuthHeaders()
+    };
 
-      console.log("API response status:", response.status);
+    // Determine endpoint based on create/edit
+    const url = modalMode === "create" 
+      ? `${API_BASE_URL}/admin/users` 
+      : `${API_BASE_URL}/admin/users/${currentUser.id}`;
 
-      // Handle response
-      if (!response.ok) {
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || `Server error: ${response.status}`;
-        } catch (jsonError) {
-          const errorText = await response.text();
-          errorMessage = errorText || `Server error: ${response.status}`;
-        }
-        throw new Error(errorMessage);
+    console.log(`Sending ${modalMode === "create" ? "POST" : "PUT"} request to: ${url}`);
+
+    // Make the API request
+    const response = await fetch(url, {
+      method: modalMode === "create" ? "POST" : "PUT",
+      headers: headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log("API response status:", response.status);
+
+    // Handle response
+    if (!response.ok) {
+      let errorMessage;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || `Server error: ${response.status}`;
+      } catch (jsonError) {
+        const errorText = await response.text();
+        errorMessage = errorText || `Server error: ${response.status}`;
       }
+      throw new Error(errorMessage);
+    }
 
-      // Parse successful response
-      const responseData = await response.json();
-      console.log("API Response:", responseData);
+    // Parse successful response
+    const responseData = await response.json();
+    console.log("API Response:", responseData);
 
-      // Update UI
-      setShowModal(false);
-      setError(`User ${modalMode === "create" ? "created" : "updated"} successfully`);
+    // Update UI
+    setShowModal(false);
+    setError(`User ${modalMode === "create" ? "created" : "updated"} successfully`);
 
-      // Refresh user list
-      fetchUsers();
+    // Refresh user list
+    fetchUsers();
 
-      // Clear success message after 3 seconds
-      setTimeout(() => setError(null), 3000);
-    } catch (err) {
-      console.error("Error saving user:", err);
-      setModalError(`Failed to ${modalMode} user: ${err.message}`);
+    // Clear success message after 3 seconds
+    setTimeout(() => setError(null), 3000);
+  } catch (err) {
+    console.error("Error saving user:", err);
+    setModalError(`Failed to ${modalMode} user: ${err.message}`);
 
-      // Fallback to localStorage for demo/development
-      if (window.confirm(`API request failed. Would you like to update the local storage for demonstration purposes?`)) {
-        try {
-          // Fallback: Update localStorage for demo purposes
-          console.log("Falling back to localStorage update");
-          const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
+    // Fallback to localStorage for demo/development
+    if (window.confirm(`API request failed. Would you like to update the local storage for demonstration purposes?`)) {
+      try {
+        // Fallback: Update localStorage for demo purposes
+        console.log("Falling back to localStorage update");
+        const storedUsers = JSON.parse(localStorage.getItem("adminUsers") || "[]");
 
-          if (modalMode === "create") {
-            // Create new user in localStorage
-            const newUser = {
-              id: storedUsers.length > 0 ? Math.max(...storedUsers.map((u) => u.id)) + 1 : 1,
+        if (modalMode === "create") {
+          // Create new user in localStorage
+          const newUser = {
+            id: storedUsers.length > 0 ? Math.max(...storedUsers.map((u) => u.id)) + 1 : 1,
+            username: userForm.username,
+            email: userForm.email || null,
+            role: userForm.admin ? "ADMIN" : "USER",
+          };
+
+          storedUsers.push(newUser);
+        } else {
+          // Update existing user in localStorage
+          const userIndex = storedUsers.findIndex((u) => u.id === currentUser.id);
+          if (userIndex !== -1) {
+            storedUsers[userIndex] = {
+              ...storedUsers[userIndex],
               username: userForm.username,
               email: userForm.email || null,
               role: userForm.admin ? "ADMIN" : "USER",
             };
-
-            storedUsers.push(newUser);
-          } else {
-            // Update existing user in localStorage
-            const userIndex = storedUsers.findIndex((u) => u.id === currentUser.id);
-            if (userIndex !== -1) {
-              storedUsers[userIndex] = {
-                ...storedUsers[userIndex],
-                username: userForm.username,
-                email: userForm.email || null,
-                role: userForm.admin ? "ADMIN" : "USER",
-              };
-            }
           }
-
-          localStorage.setItem("adminUsers", JSON.stringify(storedUsers));
-          setUsers(storedUsers);
-
-          // Close modal and show success message
-          setShowModal(false);
-          setError(`User ${modalMode === "create" ? "created" : "updated"} in localStorage (Demo mode)`);
-          setTimeout(() => setError(null), 3000);
-        } catch (storageError) {
-          console.error("Error updating localStorage:", storageError);
-          setModalError(`Failed to update user in localStorage: ${storageError.message}`);
         }
+
+        localStorage.setItem("adminUsers", JSON.stringify(storedUsers));
+        setUsers(storedUsers);
+
+        // Close modal and show success message
+        setShowModal(false);
+        setError(`User ${modalMode === "create" ? "created" : "updated"} in localStorage (Demo mode)`);
+        setTimeout(() => setError(null), 3000);
+      } catch (storageError) {
+        console.error("Error updating localStorage:", storageError);
+        setModalError(`Failed to update user in localStorage: ${storageError.message}`);
       }
-    } finally {
-      setModalLoading(false);
     }
-  };
+  } finally {
+    setModalLoading(false);
+  }
+};
 
   // Handle user deletion
   const handleDeleteUser = async () => {
