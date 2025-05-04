@@ -1,7 +1,7 @@
 // src/services/HttpClient.js
 import { AuthService } from './AuthService';
 
-const BASE_URL = 'http://localhost:8080/api';
+const BASE_URL = 'http://54.253.83.201:8080/api';
 
 /**
  * Utility class for making HTTP requests with automatic token handling

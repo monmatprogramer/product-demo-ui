@@ -68,7 +68,7 @@ export default function UserManagement() {
         const headers = getAuthHeaders();
         console.log("Using auth headers:", headers);
         
-        const response = await fetch("http://localhost:8080/api/admin/users", {
+        const response = await fetch("http://54.253.83.201:8080/api/admin/users", {
           method: "GET",
           headers: headers
         });
@@ -223,8 +223,8 @@ export default function UserManagement() {
 
       // Determine correct API endpoint based on operation
       const url = modalMode === "create"
-        ? "http://localhost:8080/api/admin/users" // User creation endpoint
-        : `http://localhost:8080/api/admin/users/${currentUser.id}`; // User update endpoint
+        ? "http://54.253.83.201:8080/api/admin/users" // User creation endpoint
+        : `http://54.253.83.201:8080/api/admin/users/${currentUser.id}`; // User update endpoint
 
       console.log(`Sending ${modalMode === "create" ? "POST" : "PUT"} request to: ${url}`);
       
@@ -327,10 +327,10 @@ export default function UserManagement() {
       const headers = getAuthHeaders();
       console.log("Using auth headers for user deletion:", headers);
       
-      console.log(`Sending DELETE request to: http://localhost:8080/api/admin/users/${userToDelete.id}`);
+      console.log(`Sending DELETE request to: http://54.253.83.201:8080/api/admin/users/${userToDelete.id}`);
       
       // Make the API request
-      const response = await fetch(`http://localhost:8080/api/admin/users/${userToDelete.id}`, {
+      const response = await fetch(`http://54.253.83.201:8080/api/admin/users/${userToDelete.id}`, {
         method: "DELETE",
         headers: headers
       });
