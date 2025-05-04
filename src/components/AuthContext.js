@@ -1,6 +1,7 @@
 // src/components/AuthContext.js - Updated for better token handling
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import { safeJsonFetch, formatApiError } from "../utils/apiUtils";
+import config from "../config";
 
 export const AuthContext = createContext();
 
@@ -282,7 +283,9 @@ export const AuthProvider = ({ children }) => {
           let users = storedUsers ? JSON.parse(storedUsers) : [];
 
           // Check if username already exists
-          if (users.some((user) => user.username === userData.username.trim())) {
+          if (
+            users.some((user) => user.username === userData.username.trim())
+          ) {
             throw new Error("Username already exists");
           }
 
