@@ -1,5 +1,5 @@
 // src/components/admin/UserManagement.js
-import React, { useState, useEffect, useContext, useCallback } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import {
   Table,
@@ -20,7 +20,6 @@ import {
   FaEyeSlash,
   FaSearch,
 } from "react-icons/fa";
-import { safeJsonFetch } from "../../utils/apiUtils";
 
 export default function UserManagement() {
   // Get auth context with proper functions
@@ -52,10 +51,9 @@ export default function UserManagement() {
   // Delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [usingFallbackData, setUsingFallbackData] = useState(false);
 
   // Function to fetch users data with authentication
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = async () => {
     // Reset state
     setLoading(true);
     setError(null);
@@ -65,14 +63,14 @@ export default function UserManagement() {
       // First attempt: Try to fetch from API
       try {
         console.log("Fetching users from backend API...");
-        
+
         // Get headers from the auth context
         const headers = getAuthHeaders();
         console.log("Using auth headers:", headers);
-        
+
         const response = await fetch("http://localhost:8080/api/admin/users", {
           method: "GET",
-          headers: headers
+          headers: headers,
         });
 
         // Check if response is ok
@@ -86,19 +84,34 @@ export default function UserManagement() {
         console.log("Users fetched successfully:", data);
         setUsers(data || []);
         setError(null);
-        setUsingFallbackData(false);
-      } else {
-        console.error("API did not return an array for users");
-        throw new Error("Invalid data format received from API");
+        return; // Exit early if successful
+      } catch (apiError) {
+        console.error("API fetch error:", apiError);
+        throw apiError; // Re-throw to be caught by outer try-catch
       }
     } catch (err) {
       console.error("Error fetching users:", err);
-      setError(err.message || "An error occurred while fetching users");
 
-      // If API call fails, create minimal fallback data for development
-      if (process.env.NODE_ENV === "development") {
-        console.log("Using fallback user data for development");
-        const fallbackUsers = [
+      // Fallback: Use mock data or localStorage data
+      console.log("Falling back to mock/localStorage data");
+
+      // Check if we have stored users in localStorage
+      const storedUsers = localStorage.getItem("adminUsers");
+      if (storedUsers) {
+        try {
+          const parsedUsers = JSON.parse(storedUsers);
+          setUsers(parsedUsers);
+          setError(
+            `Could not connect to backend API. Using stored data instead. (${err.message})`
+          );
+        } catch (parseError) {
+          console.error("Error parsing stored users:", parseError);
+          setUsers([]);
+          setError(`Failed to load users. (${err.message})`);
+        }
+      } else {
+        // Create default admin user if no users exist
+        const defaultUsers = [
           {
             id: 1,
             username: "admin",
@@ -106,16 +119,17 @@ export default function UserManagement() {
             role: "ADMIN",
           },
         ];
-        setUsers(fallbackUsers);
-        setUsingFallbackData(true);
-      } else {
-        setUsers([]);
+        localStorage.setItem("adminUsers", JSON.stringify(defaultUsers));
+        setUsers(defaultUsers);
+        setError(
+          `Could not connect to backend API. Using default data. (${err.message})`
+        );
       }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [getAuthHeaders]);
+  };
 
   // Open user edit modal
   const handleEditUser = (user) => {
@@ -170,7 +184,7 @@ export default function UserManagement() {
 
     const form = e.currentTarget;
 
-    // Check password validation
+    // Validation checks
     if (modalMode === "create" || userForm.password) {
       if (userForm.password.length < 6) {
         setModalError("Password must be at least 6 characters");
@@ -194,80 +208,138 @@ export default function UserManagement() {
     setModalError("");
 
     try {
-      // Skip API calls if using fallback data
-      if (usingFallbackData) {
-        console.log("Using fallback data - API calls skipped");
-        setTimeout(() => {
-          setShowModal(false);
-          setError(
-            `Simulated user ${
-              modalMode === "create" ? "creation" : "update"
-            } (API not available)`
-          );
-          setTimeout(() => setError(null), 3000);
-          setModalLoading(false);
-        }, 1000);
-        return;
-      }
-
-      // Get auth headers
+      // Get headers
       const headers = getAuthHeaders();
+      console.log("Using auth headers for user update:", headers);
 
-      // Prepare request payload
-      const userData = {
+      // Prepare request body
+      const requestBody = {
         username: userForm.username,
         email: userForm.email || null,
         role: userForm.admin ? "ADMIN" : "USER",
         // Only include password if creating or changing password
         ...(modalMode === "create" || userForm.password
           ? { password: userForm.password }
-          : {})
+          : {}),
       };
 
       console.log("Preparing request body:", requestBody);
 
       // Determine correct API endpoint based on operation
-      const url = modalMode === "create"
-        ? "http://localhost:8080/api/admin/users" // User creation endpoint
-        : `http://localhost:8080/api/admin/users/${currentUser.id}`; // User update endpoint
+      const url =
+        modalMode === "create"
+          ? "http://localhost:8080/api/admin/users" // User creation endpoint
+          : `http://localhost:8080/api/admin/users/${currentUser.id}`; // User update endpoint
 
-      console.log(`Sending ${modalMode === "create" ? "POST" : "PUT"} request to: ${url}`);
-      
+      console.log(
+        `Sending ${modalMode === "create" ? "POST" : "PUT"} request to: ${url}`
+      );
+
       // Make the API request
       const response = await fetch(url, {
         method: modalMode === "create" ? "POST" : "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...headers
+          ...headers,
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.message || `Failed to update user: ${response.status}`
-          );
+      // Handle response
+      if (!response.ok) {
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage =
+            errorData.message || `Server error: ${response.status}`;
+        } catch (jsonError) {
+          const errorText = await response.text();
+          errorMessage = errorText || `Server error: ${response.status}`;
         }
+        throw new Error(errorMessage);
       }
 
-      // Fetch updated user list
-      await fetchUsers();
+      // Parse successful response
+      const responseData = await response.json().catch(() => ({}));
+      console.log("API Response:", responseData);
 
-      // Close modal
+      // Update UI
       setShowModal(false);
-
-      // Show success message
       setError(
         `User ${modalMode === "create" ? "created" : "updated"} successfully`
       );
+
+      // Refresh user list
+      fetchUsers();
+
+      // Clear success message after 3 seconds
       setTimeout(() => setError(null), 3000);
     } catch (err) {
-      console.error(
-        `Error ${modalMode === "create" ? "creating" : "updating"} user:`,
-        err
-      );
-      setModalError(err.message || `Failed to ${modalMode} user`);
+      console.error("Error saving user:", err);
+      setModalError(`Failed to ${modalMode} user: ${err.message}`);
+
+      // Fallback to localStorage for demo/development
+      if (
+        !window.confirm(
+          `API request failed. Would you like to update the local storage for demonstration purposes?`
+        )
+      ) {
+        setModalLoading(false);
+        return;
+      }
+
+      try {
+        // Fallback: Update localStorage for demo purposes
+        console.log("Falling back to localStorage update");
+        const storedUsers = JSON.parse(
+          localStorage.getItem("adminUsers") || "[]"
+        );
+
+        if (modalMode === "create") {
+          // Create new user in localStorage
+          const newUser = {
+            id:
+              storedUsers.length > 0
+                ? Math.max(...storedUsers.map((u) => u.id)) + 1
+                : 1,
+            username: userForm.username,
+            email: userForm.email || null,
+            role: userForm.admin ? "ADMIN" : "USER",
+          };
+
+          storedUsers.push(newUser);
+        } else {
+          // Update existing user in localStorage
+          const userIndex = storedUsers.findIndex(
+            (u) => u.id === currentUser.id
+          );
+          if (userIndex !== -1) {
+            storedUsers[userIndex] = {
+              ...storedUsers[userIndex],
+              username: userForm.username,
+              email: userForm.email || null,
+              role: userForm.admin ? "ADMIN" : "USER",
+            };
+          }
+        }
+
+        localStorage.setItem("adminUsers", JSON.stringify(storedUsers));
+        setUsers(storedUsers);
+
+        // Close modal and show success message
+        setShowModal(false);
+        setError(
+          `User ${
+            modalMode === "create" ? "created" : "updated"
+          } in localStorage (Demo mode)`
+        );
+        setTimeout(() => setError(null), 3000);
+      } catch (storageError) {
+        console.error("Error updating localStorage:", storageError);
+        setModalError(
+          `Failed to update user in localStorage: ${storageError.message}`
+        );
+      }
     } finally {
       setModalLoading(false);
     }
@@ -278,46 +350,68 @@ export default function UserManagement() {
     if (!userToDelete) return;
 
     try {
-      // Skip API calls if using fallback data
-      if (usingFallbackData) {
-        console.log("Using fallback data - API calls skipped");
-        setTimeout(() => {
-          setShowDeleteModal(false);
-          setUserToDelete(null);
-          setError("Simulated user deletion (API not available)");
-          setTimeout(() => setError(null), 3000);
-        }, 1000);
-        return;
-      }
-
-      // Get auth headers
+      // Get headers
       const headers = getAuthHeaders();
       console.log("Using auth headers for user deletion:", headers);
-      
-      console.log(`Sending DELETE request to: http://localhost:8080/api/admin/users/${userToDelete.id}`);
-      
+
+      console.log(
+        `Sending DELETE request to: http://localhost:8080/api/admin/users/${userToDelete.id}`
+      );
+
       // Make the API request
-      const response = await fetch(`http://localhost:8080/api/admin/users/${userToDelete.id}`, {
-        method: "DELETE",
-        headers,
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/admin/users/${userToDelete.id}`,
+        {
+          method: "DELETE",
+          headers: headers,
+        }
+      );
 
+      // Handle response
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Failed to delete user: ${response.status}`
-        );
+        const errorText = await response.text();
+        console.error("API Delete Error:", errorText);
+        throw new Error(`Failed to delete user: ${response.status}`);
       }
-
-      // Fetch updated user list
-      await fetchUsers();
 
       // Show success message
       setError("User deleted successfully");
+
+      // Refresh user list
+      fetchUsers();
+
+      // Clear success message after 3 seconds
       setTimeout(() => setError(null), 3000);
     } catch (err) {
       console.error("Error deleting user:", err);
-      setError(err.message || "Failed to delete user");
+      setError(`Failed to delete user: ${err.message}`);
+
+      // Fallback to localStorage for demo/development
+      if (
+        window.confirm(
+          `API request failed. Would you like to delete from local storage for demonstration purposes?`
+        )
+      ) {
+        try {
+          // Fallback: Delete from localStorage for demo purposes
+          console.log("Falling back to localStorage deletion");
+          const storedUsers = JSON.parse(
+            localStorage.getItem("adminUsers") || "[]"
+          );
+          const updatedUsers = storedUsers.filter(
+            (u) => u.id !== userToDelete.id
+          );
+          localStorage.setItem("adminUsers", JSON.stringify(updatedUsers));
+          setUsers(updatedUsers);
+          setError("User deleted from localStorage (Demo mode)");
+          setTimeout(() => setError(null), 3000);
+        } catch (storageError) {
+          console.error("Error updating localStorage:", storageError);
+          setError(
+            `Failed to delete user from localStorage: ${storageError.message}`
+          );
+        }
+      }
     } finally {
       setShowDeleteModal(false);
       setUserToDelete(null);
@@ -333,7 +427,7 @@ export default function UserManagement() {
       setError("You must be logged in to view this content");
       setLoading(false);
     }
-  }, [isAuthenticated, fetchUsers]); // Added fetchUsers to dependencies
+  }, [isAuthenticated]);
 
   // Filter users based on search term
   const filteredUsers = users.filter(
@@ -392,21 +486,14 @@ export default function UserManagement() {
             variant={
               error.includes("success")
                 ? "success"
-                : error.includes("Simulated")
-                ? "info"
+                : error.includes("Could not connect")
+                ? "warning"
                 : "danger"
             }
             dismissible
             onClose={() => setError(null)}
           >
             {error}
-          </Alert>
-        )}
-
-        {usingFallbackData && (
-          <Alert variant="warning" className="mb-3">
-            <strong>Using fallback data:</strong> Unable to connect to API. Some
-            functionality will be limited.
           </Alert>
         )}
 
