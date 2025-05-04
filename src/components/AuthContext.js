@@ -1,4 +1,4 @@
-// src/components/AuthContext.js
+// src/components/AuthContext.js - Updated for better token handling
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import { safeJsonFetch, formatApiError } from "../utils/apiUtils";
 
@@ -75,12 +75,14 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Login function
+  // Login function - updated for better error handling
   const login = async (username, password) => {
     try {
       console.log("Attempting to login with:", username);
+      setLoading(true);
+      setError(null);
 
-      // Try API login first
+      // Try API login
       try {
         const response = await fetch(
           "http://54.253.83.201:8080/api/auth/login",
@@ -91,16 +93,16 @@ export const AuthProvider = ({ children }) => {
           }
         );
 
-        if (!response.ok) {
-          console.error("Login failed with status:", response.status);
+        console.log("Login response status:", response.status);
 
+        if (!response.ok) {
           // Try to extract error message from response
-          const errorText = await response.text();
           let errorMessage;
           try {
-            const errorData = JSON.parse(errorText);
+            const errorData = await response.json();
             errorMessage = errorData.message || "Invalid username or password";
           } catch {
+            const errorText = await response.text();
             errorMessage = errorText || "Invalid username or password";
           }
 
@@ -108,7 +110,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         const data = await response.json();
-        console.log("Login response:", data);
+        console.log("Login successful, received data:", data);
 
         // Store the token and user data
         localStorage.setItem("token", data.token);
@@ -128,6 +130,7 @@ export const AuthProvider = ({ children }) => {
             false,
         };
 
+        console.log("User data being saved:", userData);
         localStorage.setItem("user", JSON.stringify(userData));
 
         // Update state
@@ -140,37 +143,39 @@ export const AuthProvider = ({ children }) => {
 
         // Check if we need to fall back to mock authentication for development
         if (
-          !window.confirm(
+          process.env.NODE_ENV === "development" &&
+          window.confirm(
             "API login failed. Do you want to use mock authentication for development?"
           )
         ) {
-          throw apiError; // If user doesn't want mock auth, propagate the original error
+          console.log("Falling back to mock authentication");
+
+          // Mock authentication for development purposes
+          const mockUser = {
+            userId: 1,
+            username: username,
+            email: `${username}@example.com`,
+            isAdmin: username.toLowerCase() === "admin", // Make 'admin' user an admin
+          };
+
+          // Generate a mock token
+          const mockToken = `mock-token-${Math.random()
+            .toString(36)
+            .substring(2)}`;
+
+          // Store mock data
+          localStorage.setItem("user", JSON.stringify(mockUser));
+          localStorage.setItem("token", mockToken);
+
+          // Update state
+          setUser(mockUser);
+          setToken(mockToken);
+
+          return true;
         }
 
-        console.log("Falling back to mock authentication");
-
-        // Mock authentication for development purposes
-        const mockUser = {
-          userId: 1,
-          username: username,
-          email: `${username}@example.com`,
-          isAdmin: username.toLowerCase() === "admin", // Make 'admin' user an admin
-        };
-
-        // Generate a mock token
-        const mockToken = `mock-token-${Math.random()
-          .toString(36)
-          .substring(2)}`;
-
-        // Store mock data
-        localStorage.setItem("user", JSON.stringify(mockUser));
-        localStorage.setItem("token", mockToken);
-
-        // Update state
-        setUser(mockUser);
-        setToken(mockToken);
-
-        return true;
+        // If not in development or user declined mock auth, propagate the error
+        throw apiError;
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -226,9 +231,10 @@ export const AuthProvider = ({ children }) => {
   // Register function
   const register = async (userData) => {
     setError(null);
+    setLoading(true);
 
     try {
-      // Try API registration first
+      // Try API registration
       try {
         const response = await fetch(
           "http://54.253.83.201:8080/api/auth/register",
@@ -264,40 +270,42 @@ export const AuthProvider = ({ children }) => {
 
         // Check if we need to fall back to mock registration for development
         if (
-          !window.confirm(
+          process.env.NODE_ENV === "development" &&
+          window.confirm(
             "API registration failed. Do you want to use mock registration for development?"
           )
         ) {
-          throw apiError; // If user doesn't want mock auth, propagate the original error
+          console.log("Falling back to mock registration");
+
+          // For demo purposes, simulate API call using localStorage
+          const storedUsers = localStorage.getItem("adminUsers");
+          let users = storedUsers ? JSON.parse(storedUsers) : [];
+
+          // Check if username already exists
+          if (users.some((user) => user.username === userData.username.trim())) {
+            throw new Error("Username already exists");
+          }
+
+          // Create new user
+          const newUser = {
+            id: users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1,
+            username: userData.username.trim(),
+            email: userData.email ? userData.email.trim() : null,
+            role: "USER",
+          };
+
+          // Add to array
+          users.push(newUser);
+
+          // Save to localStorage
+          localStorage.setItem("adminUsers", JSON.stringify(users));
+
+          // Auto login after registration
+          return login(userData.username, userData.password);
         }
 
-        console.log("Falling back to mock registration");
-
-        // For demo purposes, simulate API call using localStorage
-        const storedUsers = localStorage.getItem("adminUsers");
-        let users = storedUsers ? JSON.parse(storedUsers) : [];
-
-        // Check if username already exists
-        if (users.some((user) => user.username === userData.username.trim())) {
-          throw new Error("Username already exists");
-        }
-
-        // Create new user
-        const newUser = {
-          id: users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1,
-          username: userData.username.trim(),
-          email: userData.email ? userData.email.trim() : null,
-          role: "USER",
-        };
-
-        // Add to array
-        users.push(newUser);
-
-        // Save to localStorage
-        localStorage.setItem("adminUsers", JSON.stringify(users));
-
-        // Auto login after registration
-        return login(userData.username, userData.password);
+        // If not in development or user declined mock auth, propagate the error
+        throw apiError;
       }
     } catch (err) {
       console.error("Registration error:", err);
