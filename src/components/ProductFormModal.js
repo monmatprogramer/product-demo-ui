@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Modal, Button, Form, Spinner, Alert, InputGroup } from 'react-bootstrap';
 import { FaSave, FaBox, FaDollarSign, FaImage } from 'react-icons/fa';
+import { AuthContext } from './AuthContext';
+import { safeJsonFetch } from '../utils/apiUtils';
 
-const ProductFormModal = ({ product, onSaved, onClose }) => {
+const ProductFormModal = ({ product, onSaved, onClose, usingFallbackData = false }) => {
+    const { getAuthHeaders } = useContext(AuthContext);
     const isNew = !product.id;
+    
     const [form, setForm] = useState({
         name: '',
         description: '',
@@ -51,6 +55,29 @@ const ProductFormModal = ({ product, onSaved, onClose }) => {
         setError(null);
         
         try {
+            // Skip API calls if using fallback data
+            if (usingFallbackData) {
+                console.log("Using fallback data - API calls skipped");
+                setTimeout(() => {
+                    // Create a mock response with the form data
+                    const mockProduct = {
+                        ...product, // Keep existing properties like ID for updates
+                        name: form.name,
+                        description: form.description,
+                        price: parseFloat(form.price),
+                        imageUrl: form.imageUrl || undefined
+                    };
+                    
+                    // For new products, add an ID
+                    if (isNew) {
+                        mockProduct.id = Date.now(); // Use timestamp as mock ID
+                    }
+                    
+                    onSaved(mockProduct);
+                }, 1000);
+                return;
+            }
+            
             const url = isNew ? '/api/products' : `/api/products/${product.id}`;
             const method = isNew ? 'POST' : 'PUT';
             
@@ -66,22 +93,29 @@ const ProductFormModal = ({ product, onSaved, onClose }) => {
                 payload.imageUrl = form.imageUrl.trim();
             }
             
+            // Get auth headers
+            const headers = getAuthHeaders();
+            
+            // Use fetch instead of safeJsonFetch for better control over response handling
             const response = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...headers
+                },
                 body: JSON.stringify(payload)
             });
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || 'Failed to save product');
+                throw new Error(errorData.message || `Failed to ${isNew ? 'create' : 'update'} product: ${response.status}`);
             }
             
             const savedProduct = await response.json();
             onSaved(savedProduct);
         } catch (err) {
             console.error("Error saving product:", err);
-            setError(err.message || 'Error saving product. Please try again.');
+            setError(err.message || `Error ${isNew ? 'creating' : 'updating'} product. Please try again.`);
             setLoading(false);
         }
     };
@@ -106,6 +140,12 @@ const ProductFormModal = ({ product, onSaved, onClose }) => {
                         </Alert>
                     )}
                     
+                    {usingFallbackData && (
+                        <Alert variant="warning" className="mb-3">
+                            <small>API not available. Changes will be simulated.</small>
+                        </Alert>
+                    )}
+                    
                     <Form.Group className="mb-3">
                         <Form.Label>Product Name</Form.Label>
                         <Form.Control
@@ -115,6 +155,7 @@ const ProductFormModal = ({ product, onSaved, onClose }) => {
                             value={form.name}
                             onChange={handleChange}
                             placeholder="Enter product name"
+                            disabled={loading}
                         />
                         <Form.Control.Feedback type="invalid">
                             Product name is required
@@ -130,6 +171,7 @@ const ProductFormModal = ({ product, onSaved, onClose }) => {
                             value={form.description}
                             onChange={handleChange}
                             placeholder="Enter product description"
+                            disabled={loading}
                         />
                     </Form.Group>
                     
@@ -148,6 +190,7 @@ const ProductFormModal = ({ product, onSaved, onClose }) => {
                                 value={form.price}
                                 onChange={handleChange}
                                 placeholder="0.00"
+                                disabled={loading}
                             />
                             <Form.Control.Feedback type="invalid">
                                 Valid price is required
@@ -167,6 +210,7 @@ const ProductFormModal = ({ product, onSaved, onClose }) => {
                                 value={form.imageUrl}
                                 onChange={handleChange}
                                 placeholder="https://example.com/image.jpg"
+                                disabled={loading}
                             />
                         </InputGroup>
                         <Form.Text className="text-muted">

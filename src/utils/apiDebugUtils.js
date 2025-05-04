@@ -1,201 +1,76 @@
-// src/utils/apiDebugUtils.js
+// src/utils/apiDebugUtil.js
 
 /**
- * Enhanced fetch function with better error handling and debugging
- * 
- * @param {string} url - URL to fetch
- * @param {Object} options - Fetch options
- * @returns {Promise<any>} - Response data
+ * Utility to test API endpoints accessibility
+ * This can be used in the browser console to diagnose API issues
  */
-export const debugFetch = async (url, options = {}) => {
-    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-    
-    if (options.body) {
-      console.log('📦 Request Payload:', JSON.parse(options.body));
-    }
-    
-    if (options.headers) {
-      console.log('🔑 Request Headers:', options.headers);
-    }
-    
+export const testApiEndpoints = async () => {
+  console.group('🔍 API Connectivity Tests');
+  
+  // Core endpoints to test - focus on product endpoints
+  const endpoints = [
+    { name: 'All Products', url: '/api/products', method: 'GET' },
+    { name: 'Single Product', url: '/api/products/1', method: 'GET' },
+    { name: 'Login Endpoint', url: '/api/auth/login', method: 'OPTIONS' }
+  ];
+  
+  for (const endpoint of endpoints) {
     try {
-      const response = await fetch(url, options);
+      console.log(`Testing ${endpoint.name}...`);
       
-      console.log(`📥 Response Status:`, response.status, response.statusText);
-      
-      // Try to get response headers
-      console.log('📥 Response Headers:', Object.fromEntries([...response.headers]));
-      
-      // Clone the response so we can read it twice
-      const clonedResponse = response.clone();
-      
-      try {
-        // Try to parse as JSON first
-        const responseData = await clonedResponse.json();
-        console.log('📥 Response Data:', responseData);
+      // For GET requests, actually make the request
+      if (endpoint.method === 'GET') {
+        const startTime = performance.now();
+        const response = await fetch(endpoint.url);
+        const duration = Math.round(performance.now() - startTime);
         
-        // Check if it's an error response
-        if (!response.ok) {
-          const errorMessage = responseData.message || `Error ${response.status}: ${response.statusText}`;
-          throw new Error(errorMessage);
+        console.log(`${endpoint.name}: Status ${response.status} (${duration}ms)`);
+        
+        if (response.ok) {
+          console.log(`✅ ${endpoint.name} is accessible!`);
+          try {
+            const data = await response.json();
+            console.log(`Data received: ${Array.isArray(data) ? `Array with ${data.length} items` : 'Object'}`);
+          } catch (e) {
+            console.log(`Could not parse response as JSON: ${e.message}`);
+          }
+        } else {
+          console.error(`❌ ${endpoint.name} returned error ${response.status}`);
         }
-        
-        return responseData;
-      } catch (jsonError) {
-        // If JSON parsing fails, try to get text
-        const responseText = await response.text();
-        console.log('📥 Response Text:', responseText);
-        
-        if (!response.ok) {
-          throw new Error(responseText || `Error ${response.status}: ${response.statusText}`);
-        }
-        
-        return responseText;
+      } else {
+        // For non-GET methods, just make an OPTIONS request to check CORS
+        const response = await fetch(endpoint.url, { method: 'OPTIONS' });
+        console.log(`${endpoint.name} OPTIONS status: ${response.status}`);
       }
     } catch (error) {
-      console.error('❌ Fetch Error:', error);
-      throw error;
+      console.error(`❌ Error testing ${endpoint.name}:`, error.message);
     }
-  };
+  }
   
-  /**
-   * Helper function to check CORS configuration issues
-   * 
-   * @param {string} url - URL to test
-   * @returns {Promise<Object>} - Test results
-   */
-  export const testCORS = async (url) => {
-    try {
-      // Test preflight request
-      const optionsResponse = await fetch(url, { 
-        method: 'OPTIONS',
-        headers: { 'Origin': window.location.origin }
-      });
-      
-      // Check CORS headers
-      const corsHeaders = {
-        'Access-Control-Allow-Origin': optionsResponse.headers.get('Access-Control-Allow-Origin'),
-        'Access-Control-Allow-Methods': optionsResponse.headers.get('Access-Control-Allow-Methods'),
-        'Access-Control-Allow-Headers': optionsResponse.headers.get('Access-Control-Allow-Headers'),
-        'Access-Control-Allow-Credentials': optionsResponse.headers.get('Access-Control-Allow-Credentials')
-      };
-      
-      console.log('🔍 CORS Test Results:', corsHeaders);
-      
-      const origin = corsHeaders['Access-Control-Allow-Origin'];
-      let originResult = 'FAILED';
-      if (origin === '*') {
-        originResult = 'OK (allows all origins)';
-      } else if (origin && origin.includes(window.location.origin)) {
-        originResult = 'OK (allows this origin)';
-      }
-      
-      return {
-        url,
-        success: !!corsHeaders['Access-Control-Allow-Origin'],
-        details: corsHeaders,
-        originAccess: originResult,
-        methodsAllowed: corsHeaders['Access-Control-Allow-Methods'] || 'Not specified',
-        headersAllowed: corsHeaders['Access-Control-Allow-Headers'] || 'Not specified',
-        credentialsAllowed: corsHeaders['Access-Control-Allow-Credentials'] === 'true'
-      };
-    } catch (error) {
-      console.error('🔍 CORS Test Error:', error);
-      return {
-        url,
-        success: false,
-        error: error.message
-      };
-    }
-  };
+  console.log('\nTesting authentication state:');
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
   
-  /**
-   * Check if a token is formatted as a valid JWT
-   * Note: This only checks format, not cryptographic validity
-   * 
-   * @param {string} token - Token to check
-   * @returns {Object} - Validation result
-   */
-  export const validateTokenFormat = (token) => {
-    if (!token) {
-      return { valid: false, reason: 'Token is missing' };
-    }
-    
-    // Check if it has JWT format (three parts separated by dots)
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return { valid: false, reason: 'Not a valid JWT format (should have 3 parts separated by dots)' };
-    }
-    
+  console.log(`Token exists: ${!!token}`);
+  console.log(`User data exists: ${!!user}`);
+  
+  if (user) {
     try {
-      // Try to decode the middle part (payload)
-      const payload = JSON.parse(atob(parts[1]));
-      
-      // Check for expiration
-      if (payload.exp) {
-        const expirationDate = new Date(payload.exp * 1000);
-        const now = new Date();
-        
-        if (expirationDate < now) {
-          return { 
-            valid: false, 
-            reason: 'Token has expired', 
-            expiry: expirationDate.toLocaleString(),
-            payload 
-          };
-        }
-      }
-      
-      return { 
-        valid: true, 
-        payload,
-        expiry: payload.exp ? new Date(payload.exp * 1000).toLocaleString() : 'No expiration'
-      };
+      const userData = JSON.parse(user);
+      console.log(`Logged in as: ${userData.username} (${userData.isAdmin ? 'Admin' : 'Regular user'})`);
     } catch (e) {
-      return { valid: false, reason: 'Failed to decode token payload', error: e.message };
+      console.log('Error parsing user data');
     }
-  };
+  }
   
-  /**
-   * Debug helper for authentication issues
-   */
-  export const debugAuth = () => {
-    // Check for token
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    const refreshToken = localStorage.getItem('refreshToken');
-    
-    console.group('🔐 Authentication Debug Info');
-    
-    console.log('Token exists:', !!token);
-    if (token) {
-      const tokenValidation = validateTokenFormat(token);
-      console.log('Token format:', tokenValidation.valid ? '✅ Valid' : '❌ Invalid');
-      console.log('Token details:', tokenValidation);
-    }
-    
-    console.log('User data exists:', !!user);
-    if (user) {
-      try {
-        const userData = JSON.parse(user);
-        console.log('User data:', userData);
-      } catch (e) {
-        console.log('Failed to parse user data:', e);
-      }
-    }
-    
-    console.log('Refresh token exists:', !!refreshToken);
-    if (refreshToken) {
-      const refreshTokenValidation = validateTokenFormat(refreshToken);
-      console.log('Refresh token format:', refreshTokenValidation.valid ? '✅ Valid' : '❌ Invalid');
-    }
-    
-    console.groupEnd();
-    
-    return {
-      hasToken: !!token,
-      hasUser: !!user,
-      hasRefreshToken: !!refreshToken,
-      tokenValid: token ? validateTokenFormat(token).valid : false
-    };
-  };
+  console.groupEnd();
+  
+  console.log('\n📋 How to fix common issues:');
+  console.log('1. If products endpoints return 401, your backend is requiring authentication for products');
+  console.log('2. Make sure your backend allows unauthenticated access to /api/products');
+  console.log('3. Check setupProxy.js to ensure it\'s not forwarding auth headers to product endpoints');
+  console.log('4. Verify your backend is running at http://localhost:8080');
+};
+
+// You can use this in the browser console by importing and running it:
+// import { testApiEndpoints } from './utils/apiDebugUtil.js'; testApiEndpoints();

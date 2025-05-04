@@ -1,5 +1,6 @@
 // src/components/AuthContext.js
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
+import { safeJsonFetch, formatApiError } from "../utils/apiUtils";
 
 export const AuthContext = createContext();
 
@@ -8,35 +9,80 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [authRequired, setAuthRequired] = useState(false);
 
-  // on mount, check localStorage
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    
-    if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-      } catch (error) {
-        console.error("Error parsing stored user:", error);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+  // Utility function to check authentication status
+  const isAuthenticated = () => {
+    return !!user && !!token;
+  };
+
+  // Get authentication headers
+  const getAuthHeaders = () => {
+    const currentToken = localStorage.getItem("token");
+    return currentToken
+      ? {
+          Authorization: `Bearer ${currentToken}`,
+          "Content-Type": "application/json",
+        }
+      : { "Content-Type": "application/json" };
+  };
+
+  // Fetch products with proper error handling for production
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setAuthRequired(false);
+
+      console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
+
+      // Make a direct API call to get products (should be public)
+      const productsData = await safeJsonFetch("/products", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (Array.isArray(productsData)) {
+        console.log(
+          `Products fetched successfully: ${productsData.length} items`
+        );
+        setProducts(productsData);
+        setError(null);
+      } else {
+        console.error("API did not return an array for products");
+        setProducts([]);
+        setError("Invalid data format received from API");
       }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+
+      // Check if it's an authentication error
+      if (
+        error.message.includes("401") ||
+        error.message.includes("unauthorized")
+      ) {
+        console.log("Products endpoint requires authentication");
+        setAuthRequired(true);
+        setError("Authentication required to view products");
+      } else {
+        setError(formatApiError(error));
+      }
+
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   // Login function
   const login = async (username, password) => {
-    setError(null);
-    
     try {
       console.log("Attempting to login with:", username);
       
       // Try API login first
       try {
-        const response = await fetch("http://54.253.83.201:8080/api/auth/login", {
+        const response = await fetch("http://localhost:8080/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password })
@@ -120,8 +166,50 @@ export const AuthProvider = ({ children }) => {
       console.error("Login error:", err);
       setError(err.message || "Failed to login. Please check your credentials.");
       return false;
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Logout function
+  const logout = () => {
+    // Clear local storage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("refreshToken");
+
+    // Reset state
+    setUser(null);
+    setToken(null);
+    setError(null);
+
+    // Attempt to fetch products after logout (they may be public)
+    fetchProducts();
+  };
+
+  // Initialize on mount
+  useEffect(() => {
+    // Check for existing token and user
+    const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setToken(storedToken);
+      } catch (error) {
+        console.error("Error parsing stored user:", error);
+        logout();
+      }
+    }
+
+    // Always fetch products regardless of authentication status
+    fetchProducts();
+
+    // Set loading to false after initial check
+    setLoading(false);
+  }, [fetchProducts]);
 
   // Register function
   const register = async (userData) => {
@@ -130,7 +218,7 @@ export const AuthProvider = ({ children }) => {
     try {
       // Try API registration first
       try {
-        const response = await fetch("http://54.253.83.201:8080/api/auth/register", {
+        const response = await fetch("http://localhost:8080/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(userData)
@@ -194,51 +282,78 @@ export const AuthProvider = ({ children }) => {
       console.error("Registration error:", err);
       setError(err.message || "Failed to register. Please try again.");
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    setUser(null);
-    setToken(null);
-  };
+  // Update profile function
+  const updateProfile = async (profileData) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const isAuthenticated = () => {
-    return !!user && !!token;
-  };
+      // Only proceed if authenticated
+      if (!isAuthenticated()) {
+        throw new Error("You must be logged in to update your profile");
+      }
 
-  // Get authentication headers for API requests
-  const getAuthHeaders = () => {
-    const currentToken = localStorage.getItem("token");
-    if (!currentToken) {
-      console.warn("getAuthHeaders called but no token found in localStorage");
-      return { "Content-Type": "application/json" };
+      // Make actual API call to update profile
+      const response = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Profile update failed: ${response.status}`
+        );
+      }
+
+      // Get updated user data
+      const updatedUserData = await response.json();
+
+      // Create updated user object
+      const updatedUser = {
+        ...user,
+        ...updatedUserData,
+      };
+
+      // Update state and localStorage
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      return true;
+    } catch (error) {
+      console.error("Profile update error:", error);
+      setError(formatApiError(error));
+      return false;
+    } finally {
+      setLoading(false);
     }
-    
-    return { 
-      "Authorization": `Bearer ${currentToken}`,
-      "Content-Type": "application/json" 
-    };
+  };
+
+  // Context value
+  const contextValue = {
+    user,
+    token,
+    login,
+    logout,
+    register,
+    updateProfile,
+    isAuthenticated,
+    getAuthHeaders,
+    loading,
+    error,
+    products,
+    fetchProducts,
+    authRequired,
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        login,
-        logout,
-        register,
-        isAuthenticated,
-        getAuthHeaders,
-        loading,
-        error,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 

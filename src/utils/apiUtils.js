@@ -1,67 +1,60 @@
 // src/utils/apiUtils.js
+import API_BASE_URL from './apiConfig';
 
 /**
- * Fetches JSON data with error handling for empty responses
- * 
- * @param {string} url - The URL to fetch from
- * @param {Object} options - Fetch options
- * @returns {Promise<any>} - The parsed JSON data or null for empty responses
- * @throws {Error} - If the fetch fails
+ * Formats errors into user-friendly messages.
  */
-export async function safeJsonFetch(url, options = {}) {
-    try {
-        const response = await fetch(url, options);
-        
-        // Handle non-success responses
-        if (!response.ok) {
-            const errorText = await response.text();
-            let errorMessage;
-            
-            try {
-                // Try to parse error as JSON
-                const errorJson = JSON.parse(errorText);
-                errorMessage = errorJson.message || `Server error: ${response.status}`;
-            } catch {
-                // If not JSON, use text or status
-                errorMessage = errorText || `Server error: ${response.status}`;
-            }
-            
-            throw new Error(errorMessage);
-        }
-        
-        // Handle 204 No Content
-        if (response.status === 204) {
-            return null;
-        }
-        
-        // Get response text first
-        const text = await response.text();
-        
-        // Handle empty response
-        if (!text) {
-            return null;
-        }
-        
-        // Parse JSON
-        try {
-            return JSON.parse(text);
-        } catch (error) {
-            console.error("Failed to parse response as JSON:", error);
-            throw new Error("Invalid JSON response from server");
-        }
-    } catch (error) {
-        // Log the error and re-throw
-        console.error(`API request failed: ${url}`, error);
-        throw error;
-    }
+export function formatApiError(error) {
+  if (error.message.includes("401") || error.message.includes("unauthorized")) {
+    return "Authentication error: Please log in again.";
+  }
+  if (error.message.includes("403") || error.message.includes("forbidden")) {
+    return "Access denied: You don't have permission to access this resource.";
+  }
+  if (error.message.includes("500") || error.message.includes("Server error")) {
+    return "Server error: Please try again later.";
+  }
+  return error.message || "An unexpected error occurred. Please try again.";
 }
 
 /**
- * Handles API errors in a standardized way
- * 
- * @param {Error} error - The error to format
- * @returns {string} - A user-friendly error message
+ * Performs a JSON fetch at CloudFront-proxied /api endpoint.
+ *   safeJsonFetch("/products")  → GET /api/products  
  */
-export function formatApiError(error) {
-    return error.message || "An unexpected error occurred. Please try again.";
+export async function safeJsonFetch(path, options = {}) {
+  // normalize incoming path
+  let normalized = path.startsWith('/') ? path : `/${path}`;
+  // avoid accidental /api/api duplication
+  if (normalized.startsWith('/api/')) {
+    normalized = normalized.substring(4);
+  }
+
+  const url = `${API_BASE_URL}${normalized}`;
+  console.log(`🔗 Fetching ${url}`, options);
+
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const ct = res.headers.get('content-type') || '';
+    let msg;
+    if (ct.includes('application/json')) {
+      const body = await res.json().catch(() => ({}));
+      msg = body.message || `Server error: ${res.status}`;
+    } else {
+      const text = await res.text();
+      msg = `Server error ${res.status}: ${res.statusText || text.substring(0,100)}`;
+    }
+    throw new Error(msg);
+  }
+
+  if (res.status === 204) return null; // No Content
+
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const txt = await res.text();
+    if (!txt) return null;
+    try { return JSON.parse(txt); }
+    catch { throw new Error(`Non-JSON response: ${txt.substring(0,50)}…`); }
+  }
+
+  return res.json();
 }

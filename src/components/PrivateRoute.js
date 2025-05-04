@@ -1,14 +1,19 @@
+// src/components/PrivateRoute.js
 import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 
 const PrivateRoute = ({ children }) => {
-    const { user } = useContext(AuthContext);
+    const auth = useContext(AuthContext);
     const loc = useLocation();
-    if (!user) {
+    
+    if (!auth.isAuthenticated()) {
         // Redirect to login, keep where we came from
-        return <Navigate to="/login" state={{ from: loc }} replace />;
+        console.log("Not authenticated, redirecting to login");
+        return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
     }
+    
+    // User is authenticated, allow access
     return children;
 };
 
