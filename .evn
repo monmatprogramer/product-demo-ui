@@ -1,1 +1,9 @@
 REACT_APP_API_BASE_URL=https://d1cpw418nlfxh1.cloudfront.net/api
+
+# Disable source maps in production for better performance
+
+GENERATE_SOURCEMAP=false
+
+# Ensure React Router works with Amplify (optional)
+
+PUBLIC_URL=/
