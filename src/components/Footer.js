@@ -1,3 +1,4 @@
+// Modified src/components/Footer.js
 import React from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
@@ -27,16 +28,16 @@ const Footer = () => {
                             with exceptional service and competitive prices.
                         </p>
                         <div className="social-icons">
-                            <a href="#" className="social-icon">
+                            <a href="https://facebook.com" aria-label="Visit our Facebook page" className="social-icon">
                                 <FaFacebook />
                             </a>
-                            <a href="#" className="social-icon">
+                            <a href="https://twitter.com" aria-label="Visit our Twitter page" className="social-icon">
                                 <FaTwitter />
                             </a>
-                            <a href="#" className="social-icon">
+                            <a href="https://instagram.com" aria-label="Visit our Instagram page" className="social-icon">
                                 <FaInstagram />
                             </a>
-                            <a href="#" className="social-icon">
+                            <a href="https://linkedin.com" aria-label="Visit our LinkedIn page" className="social-icon">
                                 <FaLinkedin />
                             </a>
                         </div>

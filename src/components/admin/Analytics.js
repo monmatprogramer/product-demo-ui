@@ -1,3 +1,4 @@
+// src/components/admin/Analytics.js - Removed unused import
 import React, { useEffect, useState } from 'react';
 import { Row, Col, Spinner, Alert, Form } from 'react-bootstrap';
 import { 
@@ -7,7 +8,6 @@ import {
     FaChartArea,
     FaExclamationTriangle
 } from 'react-icons/fa';
-import { safeJsonFetch } from '../../utils/apiUtils';
 
 export default function Analytics() {
     const [data, setData] = useState(null);
@@ -16,168 +16,62 @@ export default function Analytics() {
     const [timeFrame, setTimeFrame] = useState('month');
 
     useEffect(() => {
-        // const fetchData = async () => {
-        //     setLoading(true);
-        //     try {
-        //         // Fetch all necessary data for analytics
-        //         const [products, users, orders] = await Promise.all([
-        //             safeJsonFetch('/api/products'),
-        //             safeJsonFetch('/api/users'),
-        //             safeJsonFetch('/api/orders')
-        //         ]);
-                
-        //         const productsData = products || [];
-        //         const usersData = users || [];
-        //         const ordersData = orders || [];
-                
-        //         // Calculate sales from orders
-        //         const sales = ordersData.reduce(
-        //             (sum, o) =>
-        //                 sum + (o.total != null
-        //                     ? o.total
-        //                     : o.items ? o.items.reduce((acc, i) => acc + i.qty * i.price, 0) : 0),
-        //             0
-        //         );
-                
-        //         // Prepare data for charts
-        //         const processOrdersByDate = (orders) => {
-        //             const groupedOrders = {};
-                    
-        //             // Group by appropriate time unit
-        //             orders.forEach(order => {
-        //                 const date = new Date(order.date);
-        //                 let key;
-                        
-        //                 if (timeFrame === 'day') {
-        //                     key = date.toISOString().split('T')[0]; // YYYY-MM-DD
-        //                 } else if (timeFrame === 'month') {
-        //                     key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
-        //                 } else if (timeFrame === 'year') {
-        //                     key = `${date.getFullYear()}`; // YYYY
-        //                 }
-                        
-        //                 if (!key) return;
-                        
-        //                 if (!groupedOrders[key]) {
-        //                     groupedOrders[key] = {
-        //                         date: key,
-        //                         orders: 0,
-        //                         sales: 0
-        //                     };
-        //                 }
-                        
-        //                 groupedOrders[key].orders += 1;
-        //                 groupedOrders[key].sales += order.total || 
-        //                     (order.items ? order.items.reduce((s, i) => s + i.qty * i.price, 0) : 0);
-        //             });
-                    
-        //             // Convert to array and sort by date
-        //             return Object.values(groupedOrders).sort((a, b) => a.date.localeCompare(b.date));
-        //         };
-                
-        //         // Process data for top products
-        //         const processTopProducts = (orders) => {
-        //             const productSales = {};
-                    
-        //             orders.forEach(order => {
-        //                 if (!order.items) return;
-                        
-        //                 order.items.forEach(item => {
-        //                     if (!productSales[item.id]) {
-        //                         productSales[item.id] = {
-        //                             id: item.id,
-        //                             name: item.name,
-        //                             quantity: 0,
-        //                             revenue: 0
-        //                         };
-        //                     }
-                            
-        //                     productSales[item.id].quantity += item.qty;
-        //                     productSales[item.id].revenue += item.qty * item.price;
-        //                 });
-        //             });
-                    
-        //             // Convert to array and sort by revenue
-        //             return Object.values(productSales)
-        //                 .sort((a, b) => b.revenue - a.revenue)
-        //                 .slice(0, 5); // Top 5
-        //         };
-                
-        //         setData({
-        //             summary: {
-        //                 products: productsData.length,
-        //                 users: usersData.length,
-        //                 orders: ordersData.length,
-        //                 sales
-        //             },
-        //             salesOverTime: processOrdersByDate(ordersData),
-        //             topProducts: processTopProducts(ordersData)
-        //         });
-                
-        //         setError(null);
-        //     } catch (err) {
-        //         console.error("Error fetching analytics data:", err);
-        //         setError("Failed to load analytics data. Please try again later.");
-        //     } finally {
-        //         setLoading(false);
-        //     }
-        // };
         // src/components/admin/Analytics.js
-// Just modifying key parts to use mock data
+        // Just modifying key parts to use mock data
 
-// Inside the fetchData function:
-const fetchData = async () => {
-    setLoading(true);
-    try {
-        // Use mock data instead of API calls
-        const mockData = {
-            summary: {
-                products: 8,
-                users: 12,
-                orders: 25,
-                sales: 4259.97
-            },
-            salesOverTime: [
-                { date: '2023-01', orders: 5, sales: 1200 },
-                { date: '2023-02', orders: 8, sales: 1900 },
-                { date: '2023-03', orders: 3, sales: 800 },
-                { date: '2023-04', orders: 7, sales: 1700 },
-                { date: '2023-05', orders: 6, sales: 1500 },
-                { date: '2023-06', orders: 9, sales: 2100 },
-            ],
-            topProducts: [
-                { id: 1, name: 'Gaming Laptop', quantity: 5, revenue: 9499.95 },
-                { id: 2, name: 'Mechanical Keyboard', quantity: 8, revenue: 1036.00 },
-                { id: 3, name: 'Wireless Mouse', quantity: 12, revenue: 540.00 },
-                { id: 4, name: 'LED Monitor', quantity: 4, revenue: 999.96 },
-                { id: 5, name: 'Gaming Headset', quantity: 6, revenue: 449.94 }
-            ]
+        // Inside the fetchData function:
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // Use mock data instead of API calls
+                const mockData = {
+                    summary: {
+                        products: 8,
+                        users: 12,
+                        orders: 25,
+                        sales: 4259.97
+                    },
+                    salesOverTime: [
+                        { date: '2023-01', orders: 5, sales: 1200 },
+                        { date: '2023-02', orders: 8, sales: 1900 },
+                        { date: '2023-03', orders: 3, sales: 800 },
+                        { date: '2023-04', orders: 7, sales: 1700 },
+                        { date: '2023-05', orders: 6, sales: 1500 },
+                        { date: '2023-06', orders: 9, sales: 2100 },
+                    ],
+                    topProducts: [
+                        { id: 1, name: 'Gaming Laptop', quantity: 5, revenue: 9499.95 },
+                        { id: 2, name: 'Mechanical Keyboard', quantity: 8, revenue: 1036.00 },
+                        { id: 3, name: 'Wireless Mouse', quantity: 12, revenue: 540.00 },
+                        { id: 4, name: 'LED Monitor', quantity: 4, revenue: 999.96 },
+                        { id: 5, name: 'Gaming Headset', quantity: 6, revenue: 449.94 }
+                    ]
+                };
+                
+                // Store in localStorage for persistence
+                localStorage.setItem('mockAnalytics', JSON.stringify(mockData));
+                setData(mockData);
+                setError(null);
+            } catch (err) {
+                console.error("Error fetching analytics data:", err);
+                setError("Failed to load analytics data. Using sample data instead.");
+                
+                // Try to load from localStorage as fallback
+                const storedData = localStorage.getItem('mockAnalytics');
+                if (storedData) {
+                    setData(JSON.parse(storedData));
+                } else {
+                    // If all else fails, use hardcoded fallback
+                    setData({
+                        summary: { products: 0, users: 0, orders: 0, sales: 0 },
+                        salesOverTime: [],
+                        topProducts: []
+                    });
+                }
+            } finally {
+                setLoading(false);
+            }
         };
-        
-        // Store in localStorage for persistence
-        localStorage.setItem('mockAnalytics', JSON.stringify(mockData));
-        setData(mockData);
-        setError(null);
-    } catch (err) {
-        console.error("Error fetching analytics data:", err);
-        setError("Failed to load analytics data. Using sample data instead.");
-        
-        // Try to load from localStorage as fallback
-        const storedData = localStorage.getItem('mockAnalytics');
-        if (storedData) {
-            setData(JSON.parse(storedData));
-        } else {
-            // If all else fails, use hardcoded fallback
-            setData({
-                summary: { products: 0, users: 0, orders: 0, sales: 0 },
-                salesOverTime: [],
-                topProducts: []
-            });
-        }
-    } finally {
-        setLoading(false);
-    }
-};
         fetchData();
     }, [timeFrame]);
 

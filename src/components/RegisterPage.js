@@ -1,4 +1,4 @@
-// src/components/RegisterPage.js
+// src/components/RegisterPage.js - Fixed unused variable
 import React, { useState, useContext, useEffect } from "react";
 import {
   Container,
@@ -15,7 +15,7 @@ import { useNavigate, Link } from "react-router-dom";
 import "./AuthForms.css";
 
 const RegisterPage = () => {
-  const { register, isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({

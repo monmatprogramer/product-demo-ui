@@ -1,10 +1,9 @@
-// src/components/ProductFormModal.js
+// src/components/ProductFormModal.js - Removed unused import
 import React, { useState, useEffect, useContext } from 'react';
 import { Modal, Button, Form, Spinner, Alert, InputGroup } from 'react-bootstrap';
 import { FaSave, FaBox, FaDollarSign, FaImage } from 'react-icons/fa';
 import { AuthContext } from './AuthContext';
 import { safeJsonFetch } from '../utils/apiUtils';
-import API_BASE_URL from '../utils/apiConfig';
 
 const ProductFormModal = ({ product, onSaved, onClose, usingFallbackData = false }) => {
     const { getAuthHeaders } = useContext(AuthContext);
