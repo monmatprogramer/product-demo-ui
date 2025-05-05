@@ -2,8 +2,7 @@
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 module.exports = function (app) {
-  const apiUrl =
-    "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+  const apiUrl = "https://d1cpw418nlfxh1.cloudfront.net";
   console.log(`Setting up API proxy to ${apiUrl}`);
 
   app.use(
