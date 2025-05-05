@@ -21,22 +21,25 @@ frontend:
       headers:
         - key: "Cache-Control"
           value: "public, max-age=0, must-revalidate"
-    # Add this to ensure API calls work properly
-    - pattern: "/api/*"
+
+    # CORS headers for API calls - This is crucial
+    - pattern: "/api/**"
       headers:
         - key: "Access-Control-Allow-Origin"
           value: "*"
-        - key: "Access-Control-Allow-Headers"
-          value: "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token"
         - key: "Access-Control-Allow-Methods"
           value: "GET,POST,PUT,DELETE,OPTIONS"
-        
-  # Add this section for proper redirects
+        - key: "Access-Control-Allow-Headers"
+          value: "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Origin"
+        - key: "Access-Control-Allow-Credentials"
+          value: "true"
+
+  # Proper redirects for API calls
   customRules:
-    - source: '/api/:path*'
-      target: 'https://d1cpw418nlfxh1.cloudfront.net/api/:path*'
-      status: '200'
+    - source: "/api/<*>"
+      target: "https://d1cpw418nlfxh1.cloudfront.net/api/<*>"
+      status: "200"
       condition: null
-    - source: '/<*>'
-      target: '/index.html'
-      status: '200'
+    - source: "/<*>"
+      target: "/index.html"
+      status: "200"

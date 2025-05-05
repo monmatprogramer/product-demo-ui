@@ -82,20 +82,22 @@ export const AuthProvider = ({ children }) => {
 
       console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
 
-      // Use a direct API URL to avoid proxy issues
+      // Use a direct API URL instead of the proxy
       const apiUrl = "https://d1cpw418nlfxh1.cloudfront.net/api";
       const productsEndpoint = `${apiUrl}/products`;
 
       console.log(`Fetching products from: ${productsEndpoint}`);
 
       try {
-        // Make the API call with explicit headers and mode
+        // Make the API call with explicit CORS headers
         const response = await fetch(productsEndpoint, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
           },
+          // Important: Set credentials to 'same-origin' for your specific setup
+          credentials: "same-origin",
           mode: "cors", // Explicitly set CORS mode
         });
 
@@ -122,7 +124,7 @@ export const AuthProvider = ({ children }) => {
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
           console.error("API did not return JSON:", contentType);
-          const text = await response.text(); // Get the response as text for debugging
+          const text = await response.text();
           console.error("Non-JSON response preview:", text.substring(0, 150));
           throw new Error("Expected JSON response but got another format");
         }
@@ -154,7 +156,6 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, []);
-
   // Make sure to also include the loadDemoProducts function that's referenced above
 
   // Login function - updated for better error handling
