@@ -1,20 +1,90 @@
-// src/utils/apiService.js
-import API_BASE_URL from './apiConfig';
+// src/utils/apiService.js - Updated for Amplify deployment
+
+/**
+ * Determines the correct API URL based on environment
+ * @returns {string} The base API URL
+ */
+export const getApiBaseUrl = () => {
+  // First try environment variable (production build)
+  if (process.env.REACT_APP_API_BASE_URL) {
+    return process.env.REACT_APP_API_BASE_URL;
+  }
+
+  // In development, we'll use the proxy set up in setupProxy.js
+  if (process.env.NODE_ENV === "development") {
+    return "/api";
+  }
+
+  // Fallback to CloudFront URL
+  return "https://d1cpw418nlfxh1.cloudfront.net/api";
+};
+
+/**
+ * Handles API response errors
+ * @param {Response} response - The fetch response
+ * @returns {Promise} - Resolves with the JSON data or rejects with error
+ */
+export const handleApiResponse = async (response) => {
+  // Check if the response is OK (status in the range 200-299)
+  if (!response.ok) {
+    // Try to extract error details from the response
+    let errorMessage;
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || `Error: ${response.status}`;
+      } catch {
+        errorMessage = `Error: ${response.status}`;
+      }
+    } else {
+      // Handle non-JSON responses (like HTML)
+      const text = await response.text();
+      errorMessage = `API Error: ${response.status} - Non-JSON response received`;
+      console.error("API returned non-JSON format:", text.substring(0, 150)); // Log a preview of the response
+    }
+
+    throw new Error(errorMessage);
+  }
+
+  // Handle no content response
+  if (response.status === 204) {
+    return null;
+  }
+
+  // Check content type before parsing JSON
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("Expected JSON response but got another format");
+  }
+
+  // Parse the JSON response
+  return await response.json();
+};
 
 export const apiService = {
   /**
-   * Base request method for all API calls
-   * @param {string} endpoint - API endpoint (without /api prefix)
+   * Makes an API request with improved error handling
+   * @param {string} endpoint - API endpoint
    * @param {Object} options - Request options
-   * @param {boolean} requiresAuth - Whether authentication is required
-   * @returns {Promise<any>} - Response data
+   * @param {boolean} requiresAuth - Whether auth is required
+   * @returns {Promise<any>} Response data
    */
   async request(endpoint, options = {}, requiresAuth = true) {
     try {
-      // Add /api prefix if not present and construct full URL
-      const url = endpoint.startsWith("/")
-        ? `${API_BASE_URL}${endpoint}`
-        : `${API_BASE_URL}/${endpoint}`;
+      // Normalize the endpoint
+      const normalizedEndpoint = endpoint.startsWith("/")
+        ? endpoint
+        : `/${endpoint}`;
+
+      // Get the base URL
+      const baseUrl = getApiBaseUrl();
+
+      // Construct full URL, handling various formats
+      const url = normalizedEndpoint.startsWith("/api/")
+        ? `${baseUrl.replace(/\/api\/?$/, "")}${normalizedEndpoint}`
+        : `${baseUrl}${normalizedEndpoint}`;
 
       // Set default headers
       const headers = {
@@ -22,131 +92,40 @@ export const apiService = {
         ...options.headers,
       };
 
-      // Add auth header if required
+      // Add authorization header if required
       if (requiresAuth) {
         const token = localStorage.getItem("token");
         if (!token) {
-          throw new Error("Authentication required to access this resource");
+          throw new Error("Authentication required for this request");
         }
-        headers.Authorization = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
-      // Prepare request options
+      // Create request options
       const requestOptions = {
         ...options,
         headers,
       };
 
-      // Make request
+      console.log(`Fetching: ${url}`);
+
+      // Make the request
       const response = await fetch(url, requestOptions);
 
-      // Handle 401 Unauthorized
-      if (response.status === 401 && requiresAuth) {
-        // Clear invalid credentials
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-
-        // Throw appropriate error
-        throw new Error("Your session has expired. Please log in again.");
-      }
-
-      // Handle other errors
-      if (!response.ok) {
-        // Try to parse error response
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage =
-            errorData.message || errorData.error || `Error: ${response.status}`;
-        } catch (e) {
-          // Fallback to status text if JSON parsing fails
-          errorMessage = response.statusText || `Error: ${response.status}`;
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      // Handle 204 No Content
-      if (response.status === 204) {
-        return null;
-      }
-
-      // Parse JSON response
-      const data = await response.json();
-      return data;
+      // Process the response
+      return await handleApiResponse(response);
     } catch (error) {
       console.error(`API Error (${endpoint}):`, error);
       throw error;
     }
   },
 
-  /**
-   * GET request
-   * @param {string} endpoint - API endpoint
-   * @param {boolean} requiresAuth - Whether authentication is required
-   * @returns {Promise<any>} - Response data
-   */
+  // GET request
   async get(endpoint, requiresAuth = true) {
     return this.request(endpoint, { method: "GET" }, requiresAuth);
   },
 
-  /**
-   * Products API calls - IMPORTANT: Set these to public access (requiresAuth = false)
-   */
-  products: {
-    /**
-     * Get all products - PUBLIC ACCESS
-     * @returns {Promise<Array>} - Products array
-     */
-    async getAll() {
-      return apiService.get("/products", false);
-    },
-
-    /**
-     * Get product by ID - PUBLIC ACCESS
-     * @param {number} id - Product ID
-     * @returns {Promise<Object>} - Product data
-     */
-    async getById(id) {
-      return apiService.get(`/products/${id}`, false);
-    },
-
-    /**
-     * Create new product (admin only)
-     * @param {Object} productData - Product data
-     * @returns {Promise<Object>} - Created product
-     */
-    async create(productData) {
-      return apiService.post("/products", productData, true);
-    },
-
-    /**
-     * Update product (admin only)
-     * @param {number} id - Product ID
-     * @param {Object} productData - Updated product data
-     * @returns {Promise<Object>} - Updated product
-     */
-    async update(id, productData) {
-      return apiService.put(`/products/${id}`, productData, true);
-    },
-
-    /**
-     * Delete product (admin only)
-     * @param {number} id - Product ID
-     * @returns {Promise<null>} - Null on success
-     */
-    async delete(id) {
-      return apiService.delete(`/products/${id}`, true);
-    },
-  },
-
-  /**
-   * POST request
-   * @param {string} endpoint - API endpoint
-   * @param {Object} data - Request body
-   * @param {boolean} requiresAuth - Whether authentication is required
-   * @returns {Promise<any>} - Response data
-   */
+  // POST request
   async post(endpoint, data, requiresAuth = true) {
     return this.request(
       endpoint,
@@ -158,13 +137,7 @@ export const apiService = {
     );
   },
 
-  /**
-   * PUT request
-   * @param {string} endpoint - API endpoint
-   * @param {Object} data - Request body
-   * @param {boolean} requiresAuth - Whether authentication is required
-   * @returns {Promise<any>} - Response data
-   */
+  // PUT request
   async put(endpoint, data, requiresAuth = true) {
     return this.request(
       endpoint,
@@ -176,87 +149,10 @@ export const apiService = {
     );
   },
 
-  /**
-   * DELETE request
-   * @param {string} endpoint - API endpoint
-   * @param {boolean} requiresAuth - Whether authentication is required
-   * @returns {Promise<any>} - Response data
-   */
+  // DELETE request
   async delete(endpoint, requiresAuth = true) {
     return this.request(endpoint, { method: "DELETE" }, requiresAuth);
   },
-
-  /**
-   * Authentication API calls
-   */
-  auth: {
-    /**
-     * Login user
-     * @param {string} username - Username
-     * @param {string} password - Password
-     * @returns {Promise<Object>} - Auth response with token
-     */
-    async login(username, password) {
-      return apiService.post("/auth/login", { username, password }, false);
-    },
-
-    /**
-     * Register new user
-     * @param {Object} userData - User registration data
-     * @returns {Promise<Object>} - Registration response
-     */
-    async register(userData) {
-      return apiService.post("/auth/register", userData, false);
-    },
-
-    /**
-     * Forgot password
-     * @param {string} email - Email address
-     * @returns {Promise<Object>} - Response
-     */
-    async forgotPassword(email) {
-      return apiService.post("/auth/forgot-password", { email }, false);
-    },
-  },
-
-  /**
-   * User management API calls (admin)
-   */
-  users: {
-    /**
-     * Get all users (admin)
-     * @returns {Promise<Array>} - Users array
-     */
-    async getAll() {
-      return apiService.get("/admin/users");
-    },
-
-    /**
-     * Create new user (admin)
-     * @param {Object} userData - User data
-     * @returns {Promise<Object>} - Created user
-     */
-    async create(userData) {
-      return apiService.post("/admin/users", userData);
-    },
-
-    /**
-     * Update user (admin)
-     * @param {number} id - User ID
-     * @param {Object} userData - Updated user data
-     * @returns {Promise<Object>} - Updated user
-     */
-    async update(id, userData) {
-      return apiService.put(`/admin/users/${id}`, userData);
-    },
-
-    /**
-     * Delete user (admin)
-     * @param {number} id - User ID
-     * @returns {Promise<null>} - Null on success
-     */
-    async delete(id) {
-      return apiService.delete(`/admin/users/${id}`);
-    },
-  },
 };
+
+export default apiService;
