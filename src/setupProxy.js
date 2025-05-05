@@ -3,7 +3,7 @@ const { createProxyMiddleware } = require("http-proxy-middleware");
 
 module.exports = function (app) {
   // The API URL where your backend is hosted
-  const apiUrl = "http://54.253.83.201:8080";
+  const apiUrl = "https://d1cpw418nlfxh1.cloudfront.net";
   console.log(`Setting up API proxy to ${apiUrl}`);
 
   app.use(

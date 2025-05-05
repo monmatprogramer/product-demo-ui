@@ -177,7 +177,7 @@ export const AuthProvider = ({ children }) => {
       // Try API login
       try {
         const response = await fetch(
-          "http://54.253.83.201:8080/api/auth/login",
+          "https://d1cpw418nlfxh1.cloudfront.net/api/auth/login",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -329,7 +329,7 @@ export const AuthProvider = ({ children }) => {
       // Try API registration
       try {
         const response = await fetch(
-          "http://54.253.83.201:8080/api/auth/register",
+          "https://d1cpw418nlfxh1.cloudfront.net/api/auth/register",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
