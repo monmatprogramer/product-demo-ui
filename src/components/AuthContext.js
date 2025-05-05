@@ -41,10 +41,13 @@ export const AuthProvider = ({ children }) => {
       console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
 
       // Use relative URL which will work with the proxy
-      const response = await fetch("/api/products", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
+      const response = await fetch(
+        "https://d1cpw418nlfxh1.cloudfront.net/api/products",
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
 
       // Handle response status
       if (!response.ok) {
@@ -421,11 +424,14 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Make actual API call to update profile
-      const response = await fetch("/api/users/profile", {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(profileData),
-      });
+      const response = await fetch(
+        "https://d1cpw418nlfxh1.cloudfront.net/api/users/profile",
+        {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(profileData),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
