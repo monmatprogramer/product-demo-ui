@@ -2,7 +2,8 @@
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 module.exports = function (app) {
-  const apiUrl = "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+  const apiUrl =
+    "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
   console.log(`Setting up API proxy to ${apiUrl}`);
 
   app.use(
@@ -19,10 +20,10 @@ module.exports = function (app) {
       onProxyReq: (proxyReq, req) => {
         // Log the path being proxied
         console.log(`Proxying request: ${req.method} ${req.url}`);
-        
+
         // Don't set Origin header as it might interfere with CORS
         // Instead, let changeOrigin handle this
-        
+
         // Make the URL logging more visible in dev tools
         console.log(`📡 Proxy: ${req.method} ${apiUrl}${req.url}`);
       },
@@ -31,10 +32,10 @@ module.exports = function (app) {
         console.log(
           `📥 API Response: ${req.method} ${req.url} => ${proxyRes.statusCode}`
         );
-        
+
         // Log response headers for debugging
         if (proxyRes.statusCode !== 200) {
-          console.log('Response headers:', proxyRes.headers);
+          console.log("Response headers:", proxyRes.headers);
         }
       },
       // Handle proxy errors

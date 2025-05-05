@@ -89,7 +89,9 @@ export const testApiEndpoints = async () => {
   console.log(
     "3. Check setupProxy.js to ensure it's not forwarding auth headers to product endpoints"
   );
-  console.log("4. Verify your backend is running at http://54.253.83.201:8080");
+  console.log(
+    "4. Verify your backend is running at https://d1cpw418nlfxh1.cloudfront.net"
+  );
 };
 
 // You can use this in the browser console by importing and running it:
