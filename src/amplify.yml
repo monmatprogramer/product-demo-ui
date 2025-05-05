@@ -1,5 +1,3 @@
-# Add this file to your repository root as 'amplify.yml'
-
 version: 1
 frontend:
   phases:
@@ -32,3 +30,13 @@ frontend:
           value: "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token"
         - key: "Access-Control-Allow-Methods"
           value: "GET,POST,PUT,DELETE,OPTIONS"
+        
+  # Add this section for proper redirects
+  customRules:
+    - source: '/api/:path*'
+      target: 'https://d1cpw418nlfxh1.cloudfront.net/api/:path*'
+      status: '200'
+      condition: null
+    - source: '/<*>'
+      target: '/index.html'
+      status: '200'

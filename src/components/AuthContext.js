@@ -82,17 +82,21 @@ export const AuthProvider = ({ children }) => {
 
       console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
 
-      // Get the appropriate API URL based on environment
-      const apiUrl = process.env.REACT_APP_API_BASE_URL || "/api";
-      const productsEndpoint = `${apiUrl}/products`.replace(/\/+/g, "/");
+      // Use a direct API URL to avoid proxy issues
+      const apiUrl = "https://d1cpw418nlfxh1.cloudfront.net/api";
+      const productsEndpoint = `${apiUrl}/products`;
 
       console.log(`Fetching products from: ${productsEndpoint}`);
 
       try {
-        // Use relative URL which will work with the proxy in development
+        // Make the API call with explicit headers and mode
         const response = await fetch(productsEndpoint, {
           method: "GET",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          mode: "cors", // Explicitly set CORS mode
         });
 
         // Handle response status

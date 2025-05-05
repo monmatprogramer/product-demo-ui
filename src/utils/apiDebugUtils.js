@@ -1,98 +1,82 @@
-// src/utils/apiDebugUtil.js
+// src/utils/apiDebugHelper.js
 
 /**
- * Utility to test API endpoints accessibility
- * This can be used in the browser console to diagnose API issues
+ * Utility to diagnose API connection issues
+ * Run this in your browser console to debug API problems
  */
-export const testApiEndpoints = async () => {
-  console.group("🔍 API Connectivity Tests");
+export const debugApiConnection = async () => {
+  console.group("🔍 API Connection Debug");
 
-  // Core endpoints to test - focus on product endpoints
-  const endpoints = [
-    { name: "All Products", url: "/api/products", method: "GET" },
-    { name: "Single Product", url: "/api/products/1", method: "GET" },
-    { name: "Login Endpoint", url: "/api/auth/login", method: "OPTIONS" },
-  ];
-
-  for (const endpoint of endpoints) {
-    try {
-      console.log(`Testing ${endpoint.name}...`);
-
-      // For GET requests, actually make the request
-      if (endpoint.method === "GET") {
-        const startTime = performance.now();
-        const response = await fetch(endpoint.url);
-        const duration = Math.round(performance.now() - startTime);
-
-        console.log(
-          `${endpoint.name}: Status ${response.status} (${duration}ms)`
-        );
-
-        if (response.ok) {
-          console.log(`✅ ${endpoint.name} is accessible!`);
-          try {
-            const data = await response.json();
-            console.log(
-              `Data received: ${
-                Array.isArray(data)
-                  ? `Array with ${data.length} items`
-                  : "Object"
-              }`
-            );
-          } catch (e) {
-            console.log(`Could not parse response as JSON: ${e.message}`);
-          }
-        } else {
-          console.error(
-            `❌ ${endpoint.name} returned error ${response.status}`
-          );
-        }
-      } else {
-        // For non-GET methods, just make an OPTIONS request to check CORS
-        const response = await fetch(endpoint.url, { method: "OPTIONS" });
-        console.log(`${endpoint.name} OPTIONS status: ${response.status}`);
+  // Test the direct API call
+  try {
+    console.log("Testing direct API connection to CloudFront...");
+    const directResponse = await fetch(
+      "https://d1cpw418nlfxh1.cloudfront.net/api/products",
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        mode: "cors",
       }
-    } catch (error) {
-      console.error(`❌ Error testing ${endpoint.name}:`, error.message);
+    );
+
+    console.log("Direct API response status:", directResponse.status);
+    console.log("Direct API response OK:", directResponse.ok);
+
+    if (directResponse.ok) {
+      try {
+        const contentType = directResponse.headers.get("content-type");
+        console.log("Content-Type:", contentType);
+
+        if (contentType && contentType.includes("application/json")) {
+          const data = await directResponse.json();
+          console.log("Direct API data received:", data);
+        } else {
+          const text = await directResponse.text();
+          console.log("Direct API non-JSON response:", text.substring(0, 200));
+        }
+      } catch (e) {
+        console.error("Error parsing direct API response:", e);
+      }
     }
+  } catch (e) {
+    console.error("Direct API connection failed:", e);
   }
 
-  console.log("\nTesting authentication state:");
-  const token = localStorage.getItem("token");
-  const user = localStorage.getItem("user");
+  // Test the proxied API call
+  try {
+    console.log("\nTesting proxied API connection...");
+    const proxiedResponse = await fetch("/api/products");
 
-  console.log(`Token exists: ${!!token}`);
-  console.log(`User data exists: ${!!user}`);
+    console.log("Proxied API response status:", proxiedResponse.status);
+    console.log("Proxied API response OK:", proxiedResponse.ok);
 
-  if (user) {
-    try {
-      const userData = JSON.parse(user);
-      console.log(
-        `Logged in as: ${userData.username} (${
-          userData.isAdmin ? "Admin" : "Regular user"
-        })`
-      );
-    } catch (e) {
-      console.log("Error parsing user data");
+    if (proxiedResponse.ok) {
+      try {
+        const contentType = proxiedResponse.headers.get("content-type");
+        console.log("Content-Type:", contentType);
+
+        if (contentType && contentType.includes("application/json")) {
+          const data = await proxiedResponse.json();
+          console.log("Proxied API data received:", data);
+        } else {
+          const text = await proxiedResponse.text();
+          console.log("Proxied API non-JSON response:", text.substring(0, 200));
+        }
+      } catch (e) {
+        console.error("Error parsing proxied API response:", e);
+      }
     }
+  } catch (e) {
+    console.error("Proxied API connection failed:", e);
   }
 
   console.groupEnd();
 
-  console.log("\n📋 How to fix common issues:");
-  console.log(
-    "1. If products endpoints return 401, your backend is requiring authentication for products"
-  );
-  console.log(
-    "2. Make sure your backend allows unauthenticated access to /api/products"
-  );
-  console.log(
-    "3. Check setupProxy.js to ensure it's not forwarding auth headers to product endpoints"
-  );
-  console.log(
-    "4. Verify your backend is running at https://d1cpw418nlfxh1.cloudfront.net"
-  );
+  return "API debugging complete. Check console for results.";
 };
 
-// You can use this in the browser console by importing and running it:
-// import { testApiEndpoints } from './utils/apiDebugUtil.js'; testApiEndpoints();
+// To use this function, import it and call it in your browser console:
+// import { debugApiConnection } from './utils/apiDebugHelper'; debugApiConnection();
