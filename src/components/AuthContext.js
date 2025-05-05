@@ -28,81 +28,8 @@ export const AuthProvider = ({ children }) => {
       : { "Content-Type": "application/json" };
   };
 
-  // Fetch products with proper error handling for production
-  // src/components/AuthContext.js - Updated fetchProducts function
-
-  // Replace the current fetchProducts function with this improved version:
-  const fetchProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setAuthRequired(false);
-
-      console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
-
-      try {
-        // Use relative URL which will work with the proxy
-        const response = await fetch("/api/products", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
-
-        // Handle response status
-        if (!response.ok) {
-          console.error(`API returned error: ${response.status}`);
-
-          // Check if it's an authentication error
-          if (response.status === 401) {
-            console.log("Products endpoint requires authentication");
-            setAuthRequired(true);
-            setError("Authentication required to view products");
-          } else {
-            // Generic error message for other errors
-            setError(`Failed to fetch products: ${response.status}`);
-          }
-
-          // Fall back to demo data
-          useDemoProducts();
-          return;
-        }
-
-        // Check content type before parsing JSON
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          console.error("API did not return JSON:", contentType);
-          throw new Error("Expected JSON response but got another format");
-        }
-
-        // Parse the response
-        const productsData = await response.json();
-
-        if (Array.isArray(productsData)) {
-          console.log(
-            `Products fetched successfully: ${productsData.length} items`
-          );
-          setProducts(productsData);
-          setError(null);
-        } else {
-          console.error("API did not return an array for products");
-          throw new Error("API did not return an array of products");
-        }
-      } catch (apiError) {
-        console.error("API error:", apiError);
-        // Use demo data when API returns unexpected format
-        useDemoProducts("API returned unexpected format");
-      }
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-      // Provide user-friendly error message
-      setError("Failed to load products. Please try again later.");
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Helper function to use demo products data
-  const useDemoProducts = (reason = "Failed to connect to API") => {
+  // Helper function to use demo products data - renamed from useDemoProducts to loadDemoProducts
+  const loadDemoProducts = (reason = "Failed to connect to API") => {
     console.log(`Using demo products data: ${reason}`);
     const demoProducts = [
       {
@@ -140,6 +67,79 @@ export const AuthProvider = ({ children }) => {
     setProducts(demoProducts);
     setError(`Using demo data - ${reason}`);
   };
+
+  // Fetch products with proper error handling for production
+  // src/components/AuthContext.js - Updated fetchProducts function
+
+  // Replace the current fetchProducts function with this improved version:
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setAuthRequired(false);
+
+      console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
+
+      try {
+        // Use relative URL which will work with the proxy
+        const response = await fetch("/api/products", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        // Handle response status
+        if (!response.ok) {
+          console.error(`API returned error: ${response.status}`);
+
+          // Check if it's an authentication error
+          if (response.status === 401) {
+            console.log("Products endpoint requires authentication");
+            setAuthRequired(true);
+            setError("Authentication required to view products");
+          } else {
+            // Generic error message for other errors
+            setError(`Failed to fetch products: ${response.status}`);
+          }
+
+          // Fall back to demo data
+          loadDemoProducts();
+          return;
+        }
+
+        // Check content type before parsing JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("API did not return JSON:", contentType);
+          throw new Error("Expected JSON response but got another format");
+        }
+
+        // Parse the response
+        const productsData = await response.json();
+
+        if (Array.isArray(productsData)) {
+          console.log(
+            `Products fetched successfully: ${productsData.length} items`
+          );
+          setProducts(productsData);
+          setError(null);
+        } else {
+          console.error("API did not return an array for products");
+          throw new Error("API did not return an array of products");
+        }
+      } catch (apiError) {
+        console.error("API error:", apiError);
+        // Use demo data when API returns unexpected format
+        loadDemoProducts("API returned unexpected format");
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      // Provide user-friendly error message
+      setError("Failed to load products. Please try again later.");
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Login function - updated for better error handling
   const login = async (username, password) => {
