@@ -1,7 +1,6 @@
 // src/components/AuthContext.js - Updated for better token handling
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import { safeJsonFetch, formatApiError } from "../utils/apiUtils";
-import config from "../config";
 
 export const AuthContext = createContext();
 
