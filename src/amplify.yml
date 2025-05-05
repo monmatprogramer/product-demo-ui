@@ -1,0 +1,34 @@
+# Add this file to your repository root as 'amplify.yml'
+
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - echo "REACT_APP_API_BASE_URL=https://d1cpw418nlfxh1.cloudfront.net/api" >> .env
+        - npm run build
+  artifacts:
+    baseDirectory: build
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - node_modules/**/*
+
+  customHeaders:
+    - pattern: "**/*"
+      headers:
+        - key: "Cache-Control"
+          value: "public, max-age=0, must-revalidate"
+    # Add this to ensure API calls work properly
+    - pattern: "/api/*"
+      headers:
+        - key: "Access-Control-Allow-Origin"
+          value: "*"
+        - key: "Access-Control-Allow-Headers"
+          value: "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token"
+        - key: "Access-Control-Allow-Methods"
+          value: "GET,POST,PUT,DELETE,OPTIONS"
