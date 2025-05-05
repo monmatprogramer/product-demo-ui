@@ -72,6 +72,8 @@ export const AuthProvider = ({ children }) => {
   // src/components/AuthContext.js - Updated fetchProducts function
 
   // Replace the current fetchProducts function with this improved version:
+  // Replace the fetchProducts function in src/components/AuthContext.js with this improved version
+
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -80,9 +82,15 @@ export const AuthProvider = ({ children }) => {
 
       console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
 
+      // Get the appropriate API URL based on environment
+      const apiUrl = process.env.REACT_APP_API_BASE_URL || "/api";
+      const productsEndpoint = `${apiUrl}/products`.replace(/\/+/g, "/");
+
+      console.log(`Fetching products from: ${productsEndpoint}`);
+
       try {
-        // Use relative URL which will work with the proxy
-        const response = await fetch("/api/products", {
+        // Use relative URL which will work with the proxy in development
+        const response = await fetch(productsEndpoint, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
@@ -110,6 +118,8 @@ export const AuthProvider = ({ children }) => {
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
           console.error("API did not return JSON:", contentType);
+          const text = await response.text(); // Get the response as text for debugging
+          console.error("Non-JSON response preview:", text.substring(0, 150));
           throw new Error("Expected JSON response but got another format");
         }
 
@@ -129,7 +139,7 @@ export const AuthProvider = ({ children }) => {
       } catch (apiError) {
         console.error("API error:", apiError);
         // Use demo data when API returns unexpected format
-        loadDemoProducts("API returned unexpected format");
+        loadDemoProducts("API returned unexpected format or is unavailable");
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -140,6 +150,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, []);
+
+  // Make sure to also include the loadDemoProducts function that's referenced above
 
   // Login function - updated for better error handling
   const login = async (username, password) => {
