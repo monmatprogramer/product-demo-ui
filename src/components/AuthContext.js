@@ -30,6 +30,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Fetch products with proper error handling for production
+  // src/components/AuthContext.js - Updated fetchProducts function
+
+  // Replace the current fetchProducts function with this improved version:
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -38,11 +41,33 @@ export const AuthProvider = ({ children }) => {
 
       console.log(`Environment: ${process.env.NODE_ENV}, fetching products...`);
 
-      // Make a direct API call to get products (should be public)
-      const productsData = await safeJsonFetch("/products", {
+      // Use relative URL which will work with the proxy
+      const response = await fetch("/api/products", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
+
+      // Handle response status
+      if (!response.ok) {
+        console.error(`API returned error: ${response.status}`);
+
+        // Check if it's an authentication error
+        if (response.status === 401) {
+          console.log("Products endpoint requires authentication");
+          setAuthRequired(true);
+          setError("Authentication required to view products");
+        } else {
+          // Generic error message for other errors
+          setError(`Failed to fetch products: ${response.status}`);
+        }
+
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
+      // Parse the response
+      const productsData = await response.json();
 
       if (Array.isArray(productsData)) {
         console.log(
@@ -52,25 +77,91 @@ export const AuthProvider = ({ children }) => {
         setError(null);
       } else {
         console.error("API did not return an array for products");
-        setProducts([]);
-        setError("Invalid data format received from API");
+
+        // Use demo data when API returns unexpected format
+        console.log("Using demo products data");
+        const demoProducts = [
+          {
+            id: 1,
+            name: "Gaming Laptop",
+            price: 1299.99,
+            description: "High performance gaming laptop",
+          },
+          {
+            id: 2,
+            name: "Wireless Mouse",
+            price: 45.99,
+            description: "Ergonomic wireless mouse",
+          },
+          {
+            id: 3,
+            name: "Mechanical Keyboard",
+            price: 129.5,
+            description: "RGB mechanical gaming keyboard",
+          },
+          {
+            id: 4,
+            name: "LED Monitor",
+            price: 249.99,
+            description: "27-inch 4K LED monitor",
+          },
+          {
+            id: 5,
+            name: "USB Headset",
+            price: 79.99,
+            description: "Over-ear USB headset with noise cancellation",
+          },
+        ];
+
+        setProducts(demoProducts);
+        setError("Using demo data - API returned unexpected format");
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
 
-      // Check if it's an authentication error
-      if (
-        error.message.includes("401") ||
-        error.message.includes("unauthorized")
-      ) {
-        console.log("Products endpoint requires authentication");
-        setAuthRequired(true);
-        setError("Authentication required to view products");
-      } else {
-        setError(formatApiError(error));
-      }
-
+      // Provide user-friendly error message
+      setError("Failed to load products. Please try again later.");
       setProducts([]);
+
+      // Fall back to demo data in development
+      if (process.env.NODE_ENV === "development") {
+        console.log("Development environment: Using demo products data");
+        const demoProducts = [
+          {
+            id: 1,
+            name: "Gaming Laptop",
+            price: 1299.99,
+            description: "High performance gaming laptop",
+          },
+          {
+            id: 2,
+            name: "Wireless Mouse",
+            price: 45.99,
+            description: "Ergonomic wireless mouse",
+          },
+          {
+            id: 3,
+            name: "Mechanical Keyboard",
+            price: 129.5,
+            description: "RGB mechanical gaming keyboard",
+          },
+          {
+            id: 4,
+            name: "LED Monitor",
+            price: 249.99,
+            description: "27-inch 4K LED monitor",
+          },
+          {
+            id: 5,
+            name: "USB Headset",
+            price: 79.99,
+            description: "Over-ear USB headset with noise cancellation",
+          },
+        ];
+
+        setProducts(demoProducts);
+        setError("Using demo data - Failed to connect to API");
+      }
     } finally {
       setLoading(false);
     }

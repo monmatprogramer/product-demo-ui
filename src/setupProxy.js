@@ -1,8 +1,9 @@
-// src/setupProxy.js
+// src/setupProxy.js - Updated to fix CORS issues
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 module.exports = function (app) {
-  const apiUrl = "http://product-spring-boot-pro-new-env.eba-ghmu6gcw.ap-southeast-2.elasticbeanstalk.com";
+  // The API URL where your backend is hosted
+  const apiUrl = "http://54.253.83.201:8080";
   console.log(`Setting up API proxy to ${apiUrl}`);
 
   app.use(
@@ -11,7 +12,7 @@ module.exports = function (app) {
       target: apiUrl,
       changeOrigin: true,
       secure: false, // Accept insecure (HTTP) connections
-      pathRewrite: { "^/api": "/api" }, // Keep the /api prefix
+      pathRewrite: { "^/api": "" }, // Important: Remove the /api prefix for backend
       logLevel: "debug",
       // Important: Don't send credentials by default
       withCredentials: false,
@@ -19,10 +20,7 @@ module.exports = function (app) {
       onProxyReq: (proxyReq, req) => {
         // Log the path being proxied
         console.log(`Proxying request: ${req.method} ${req.url}`);
-        
-        // Don't set Origin header as it might interfere with CORS
-        // Instead, let changeOrigin handle this
-        
+
         // Make the URL logging more visible in dev tools
         console.log(`📡 Proxy: ${req.method} ${apiUrl}${req.url}`);
       },
@@ -31,10 +29,10 @@ module.exports = function (app) {
         console.log(
           `📥 API Response: ${req.method} ${req.url} => ${proxyRes.statusCode}`
         );
-        
+
         // Log response headers for debugging
         if (proxyRes.statusCode !== 200) {
-          console.log('Response headers:', proxyRes.headers);
+          console.log("Response headers:", proxyRes.headers);
         }
       },
       // Handle proxy errors

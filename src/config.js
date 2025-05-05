@@ -1,79 +1,52 @@
-// src/config.js - Central configuration for the application
+// src/config.js - Updated with proper configuration
 
 /**
  * Application configuration with environment-specific settings
  */
 const config = {
-    // Base configuration (shared across environments)
-    app: {
-      name: "Computer Store",
-      version: "1.0.0",
-    },
-  
-    // API configuration
-    api: {
-      // This is the primary setting you'll change when switching environments
-      host: "54.253.83.201",
-      port: "8080",
-      
-      // These are computed based on the host and port
-      // No need to modify these when changing environments
-      baseUrl: function() {
-        return `http://${this.host}${this.port ? `:${this.port}` : ""}`;
-      },
-      
-      fullUrl: function() {
-        return `${this.baseUrl()}/api`;
-      },
-      
-      // For convenience, access specific endpoints
-      endpoints: {
-        products: "/products",
-        auth: {
-          login: "/auth/login",
-          register: "/auth/register",
-        },
-        admin: {
-          users: "/admin/users",
-          dashboard: "/admin/dashboard",
-        }
-      }
-    },
-  
-    // Environment detection (useful for conditional logic)
-    isProduction: process.env.NODE_ENV === "production",
-    isDevelopment: process.env.NODE_ENV === "development",
+  // Base configuration (shared across environments)
+  app: {
+    name: "Computer Store",
+    version: "1.0.0",
+  },
+
+  // API configuration
+  api: {
+    // Using relative URLs for API endpoints which will work with the proxy
+    baseUrl: "/api",
     
-    // Alternate API servers (for easy switching in development)
-    alternateServers: {
-      local: {
-        host: "localhost",
-        port: "8080"
+    // For convenience, access specific endpoints
+    endpoints: {
+      products: "/products",
+      auth: {
+        login: "/auth/login",
+        register: "/auth/register",
       },
-      staging: {
-        host: "staging-api.example.com",
-        port: ""  // Empty string for default port (80/443)
-      },
-      production: {
-        host: "54.253.83.201",
-        port: "8080"
+      admin: {
+        users: "/admin/users",
+        dashboard: "/admin/dashboard",
       }
     },
     
-    // Function to easily switch API servers during development
-    // Usage: config.setApiServer('local') or config.setApiServer('production')
-    setApiServer: function(serverKey) {
-      if (this.alternateServers[serverKey]) {
-        this.api.host = this.alternateServers[serverKey].host;
-        this.api.port = this.alternateServers[serverKey].port;
-        console.log(`API server switched to ${serverKey}: ${this.api.baseUrl()}`);
-        return true;
-      } else {
-        console.error(`Unknown server key: ${serverKey}`);
-        return false;
-      }
-    }
-  };
+    // Backend URL for direct connections (only for debugging)
+    backendUrl: "http://54.253.83.201:8080"
+  },
+
+  // Environment detection
+  isProduction: process.env.NODE_ENV === "production",
+  isDevelopment: process.env.NODE_ENV === "development",
   
-  // Export the configuration
-  export default config;
+  // Demo data for fallback when API is unavailable
+  demoData: {
+    products: [
+      { id: 1, name: "Gaming Laptop", price: 1299.99, description: "High performance gaming laptop" },
+      { id: 2, name: "Wireless Mouse", price: 45.99, description: "Ergonomic wireless mouse" },
+      { id: 3, name: "Mechanical Keyboard", price: 129.50, description: "RGB mechanical gaming keyboard" },
+      { id: 4, name: "LED Monitor", price: 249.99, description: "27-inch 4K LED monitor" },
+      { id: 5, name: "USB Headset", price: 79.99, description: "Over-ear USB headset with noise cancellation" }
+    ]
+  }
+};
+
+// Export the configuration
+export default config;
